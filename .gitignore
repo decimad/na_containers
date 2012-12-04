@@ -11,3 +11,11 @@
 *.lai
 *.la
 *.a
+
+debug/
+release/
+na_containers/debug
+na_containers/release
+
+*.sdf
+*.opensdf
