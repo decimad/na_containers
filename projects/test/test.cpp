@@ -9,35 +9,37 @@ struct nan_value {
 };
 const float nan_value::value = std::numeric_limits<float>::quiet_NaN();
 
+
+template< typename A, typename B >
+void func( const std::vector< A, B >& vec )
+{
+
+}
+
+
 int main()
 {
 
 	typedef na::na_vector< float, na::policies::NaPolicyOptional<float> > na_vector1_optional;
 	typedef na::na_vector< float > na_vector1_special;
-
-	typedef na::na_vector2< float, na::policies::NaPolicyOptional<float> > na_vector2_optional;
-	typedef na::na_vector2< float > na_vector2_special;
-	typedef na::na_vector2< float, na::policies::NaPolicySV<float,nan_value> > na_vector2_special_nan;
-
+	typedef na::na_vector< float, na::policies::NaPolicySV<float,nan_value> > na_vector1_special_nan;
+	
 	na_vector1_optional vec1;
 	na_vector1_special  vec2;
+	na_vector1_special_nan vec3;
 
-	na_vector2_optional vec3;
-	na_vector2_special  vec4;
+	vec2.push_back( 14 );
+	vec2.push_back( NA );
+	vec2.push_back( 13 );
 
-	na_vector2_special_nan vec5;
+	vec2.insert( vec2.begin(), 10, NA );
+	vec2.insert( vec2.begin(), 10, 4.5 );
 
-	vec4.push_back( 14 );
-	vec4.push_back( NA );
-	vec4.push_back( 13 );
-
-	vec4.insert( vec4.begin(), 10, NA );
-	vec4.insert( vec4.begin(), 10, 4.5 );
-
-	auto filtered = vec4.filtered();
+	auto filtered = vec2.filtered();
 
 	for( auto it = filtered.begin(); it != filtered.end(); ++it ) {
 		wcout << *it << '\n';
 	}
 
+	// func( vec2 ); // must not compile!
 }
