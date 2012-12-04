@@ -202,14 +202,23 @@ namespace na {
 	public:
 		typedef typename vector::value_type value_type;
 
+		// na interface
 	public:
 		// using vector::vector;	// *sniff*
 
 		typedef detail::filtered_list< iterator, NaPolicy > filtered_list;
-		
+
 		static value_type get_na() {
 			return NaPolicy::get_na();
 		}
+
+		filtered_list filtered()
+		{
+			return filtered_list( begin(), end() );
+		}
+
+		// vector interface
+	public:
 
 		using vector::push_back;
 
@@ -219,13 +228,30 @@ namespace na {
 
 		using vector::insert;
 
-		void insert( const_iterator _Where, size_type _Count, const detail::_na_type& _Val ) {
-			vector::insert( _Where, _Count, get_na() );
+		iterator insert( const_iterator _Where, size_type _Count, const detail::_na_type& ) {
+			return vector::insert( _Where, _Count, get_na() );
 		}
 
-		filtered_list filtered()
+		iterator insert( const_iterator _Where, const detail::_na_type&& ) {
+			return vector::insert( _Where, get_na() );
+		}
+
+		iterator insert( const_iterator _Where, const detail::_na_type& ) {
+			return vector::insert( _Where, get_na() );
+		}
+
+		using vector::resize;
+
+		void resize(size_type _Newsize, const detail::_na_type& )
 		{
-			return filtered_list( begin(), end() );
+			vector::resize( _Newsize, get_na() );
+		}
+		
+		using vector::assign;
+
+		void assign( size_type _Count, const detail::_na_type& _Val )
+		{
+			vector::assign( _Count, get_na() );
 		}
 
 	};
