@@ -22,40 +22,6 @@ namespace na {
 			static const float value;
 		};
 
-		template< typename ValueType, typename ValueStruct = special_value_default<ValueType> >
-		class NaPolicySV {
-		public:
-			typedef ValueType value_type;
-						
-		public:
-			static bool is_na( const value_type& val )
-			{
-				return val == get_na();
-			}
-			
-			static const value_type get_na()
-			{
-				return ValueStruct::value;
-			}
-		};
-
-		template< typename ValueType >
-		class NaPolicyOptional {
-		public:
-			typedef boost::optional< ValueType > value_type;
-
-		public:
-			static bool is_na( const value_type& val )
-			{
-				return val.is_initialized();
-			}
-
-			static const value_type get_na()
-			{
-				return value_type();
-			}
-		};
-
 		template< typename Iterator, typename Filter >
 		class filtered_list {
 		public:
@@ -109,10 +75,48 @@ namespace na {
 
 	}
 
+	namespace policies {
+		
+		template< typename ValueType, typename ValueStruct = detail::special_value_default<ValueType> >
+		class NaPolicySV {
+		public:
+			typedef ValueType value_type;
+
+		public:
+			static bool is_na( const value_type& val )
+			{
+				return val == get_na();
+			}
+
+			static const value_type get_na()
+			{
+				return ValueStruct::value;
+			}
+		};
+
+		template< typename ValueType >
+		class NaPolicyOptional {
+		public:
+			typedef boost::optional< ValueType > value_type;
+
+		public:
+			static bool is_na( const value_type& val )
+			{
+				return val.is_initialized();
+			}
+
+			static const value_type get_na()
+			{
+				return value_type();
+			}
+		};
+
+	}
+
 	extern detail::_na_type NA;
 
-	template< typename ValueType, class NaPolicy = detail::NaPolicySV< ValueType >, typename Allocator = std::allocator<ValueType> >
-	class na_vector : public NaPolicy {
+	template< typename ValueType, class NaPolicy = policies::NaPolicySV< ValueType >, typename Allocator = std::allocator<ValueType> >
+	class na_vector : private NaPolicy {
 	public:
 		typedef typename NaPolicy::value_type value_type;
 		typedef std::vector< value_type, Allocator > container_type;
@@ -133,55 +137,7 @@ namespace na {
 		typedef typename container_type::iterator iterator;
 		typedef typename container_type::const_iterator const_iterator;
 
-		class filtered_list {
-		public:
-			filtered_list( iterator& _begin, iterator& _end )
-				: begin_(_begin), end_(_end)
-			{
-			}
-
-			struct is_na_predicate {
-				bool operator()( const_reference val ) {
-					return val != NaPolicy::get_na();
-				}
-			};
-
-			typedef boost::filter_iterator<is_na_predicate, typename na_vector::iterator> iterator;
-			typedef boost::filter_iterator<is_na_predicate, typename na_vector::const_iterator>  const_iterator;
-
-			iterator begin()
-			{
-				return iterator( begin_, end_ );
-			}
-
-			const_iterator cbegin() const
-			{
-				return const_iterator( begin_, end_ );
-			}
-
-			const_iterator begin() const
-			{
-				return const_iterator( end_, end_ );
-			}
-
-			iterator end()
-			{
-				return iterator( end_, end_ );
-			}
-
-			const_iterator cend() const
-			{
-				return const_iterator( end_, end_ );
-			}
-
-			const_iterator end() const
-			{
-				return const_iterator( end_, end_ );
-			}
-
-		private:
-			typename na_vector::iterator begin_, end_;
-		};
+		typedef detail::filtered_list< iterator, NaPolicy > filtered_list;
 
 		iterator begin() {
 			return data_.begin();
@@ -241,7 +197,7 @@ namespace na {
 	};
 
 
-	template< typename ValueType, class NaPolicy = detail::NaPolicySV< ValueType >, typename Allocator = std::allocator<NaPolicy::value_type> >
+	template< typename ValueType, class NaPolicy = policies::NaPolicySV< ValueType >, typename Allocator = std::allocator<NaPolicy::value_type> >
 	class na_vector2 : private NaPolicy, public std::vector< typename NaPolicy::value_type, Allocator > {
 	public:
 		typedef typename vector::value_type value_type;
