@@ -1,30 +1,32 @@
 #include <na_containers/na_vector.h>
-#include <boost/iterator/filter_iterator.hpp>
-#include <boost/optional.hpp>
 #include <iostream>
 using std::wcout;
 using na::NA;
 
 int main()
 {
-	typedef na::na_vector< float, na::detail::NaPolicyOptional<float> > vector_type1;
-	typedef na::na_vector< float > vector_type2;
+	typedef na::na_vector< float, na::detail::NaPolicyOptional<float> > na_vector1_optional;
+	typedef na::na_vector< float > na_vector1_special;
 
-	vector_type2 vec;
+	typedef na::na_vector2< float, na::detail::NaPolicyOptional<float> > na_vector2_optional;
+	typedef na::na_vector2< float > na_vector2_special;
 
-//	boost::optional<int> myInt;
-	
+	na_vector1_optional vec1;
+	na_vector1_special  vec2;
 
-	vec.push_back( 14 );
-	vec.push_back( NA );
-	vec.push_back( 13 );
-//	vec.push_back( vector_type::NA );
+	na_vector2_optional vec3;
+	na_vector2_special  vec4;
 
-	auto filtered = vec.filtered();
+	vec4.push_back( 14 );
+	vec4.push_back( NA );
+	vec4.push_back( 13 );
+
+	vec4.insert( vec4.begin(), 10, NA );
+
+	auto filtered = vec4.filtered();
 
 	for( auto it = filtered.begin(); it != filtered.end(); ++it ) {
 		wcout << *it << '\n';
 	}
-
 
 }

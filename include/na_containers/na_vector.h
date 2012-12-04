@@ -6,12 +6,11 @@
 #include <vector>
 
 namespace na {
-	
-	enum _na_enum {
-		NA
-	};
 
 	namespace detail {
+		
+		struct _na_type {
+		};
 
 		template< typename T > struct special_value_default {
 			static const T value = boost::integral_traits<T>::const_min;
@@ -57,7 +56,60 @@ namespace na {
 			}
 		};
 
+		template< typename Iterator, typename Filter >
+		class filtered_list {
+		public:
+			filtered_list( Iterator& _begin, Iterator& _end )
+				: begin_(_begin), end_(_end)
+			{
+			}
+
+			struct is_na_predicate {
+				bool operator()( const typename Iterator::reference val ) {
+					return !Filter::is_na( val );
+				}
+			};
+
+			typedef boost::filter_iterator<is_na_predicate, Iterator> iterator;
+			typedef boost::filter_iterator<is_na_predicate, Iterator>  const_iterator;
+
+			iterator begin()
+			{
+				return iterator( begin_, end_ );
+			}
+
+			const_iterator cbegin() const
+			{
+				return const_iterator( begin_, end_ );
+			}
+
+			const_iterator begin() const
+			{
+				return const_iterator( end_, end_ );
+			}
+
+			iterator end()
+			{
+				return iterator( end_, end_ );
+			}
+
+			const_iterator cend() const
+			{
+				return const_iterator( end_, end_ );
+			}
+
+			const_iterator end() const
+			{
+				return const_iterator( end_, end_ );
+			}
+
+		private:
+			typename Iterator begin_, end_;
+		};
+
 	}
+
+	extern detail::_na_type NA;
 
 	template< typename ValueType, class NaPolicy = detail::NaPolicySV< ValueType >, typename Allocator = std::allocator<ValueType> >
 	class na_vector : public NaPolicy {
@@ -170,12 +222,7 @@ namespace na {
 			data_.push_back( val );
 		}
 
-		void push_back( na_type )
-		{
-			data_.push_back( NaPolicy::get_na( data_.size() ) );
-		}
-
-		void push_back( _na_enum ) {
+		void push_back( detail::_na_type ) {
 			data_.push_back( NaPolicy::get_na() );
 		}
 
@@ -194,7 +241,38 @@ namespace na {
 	};
 
 
+	template< typename ValueType, class NaPolicy = detail::NaPolicySV< ValueType >, typename Allocator = std::allocator<NaPolicy::value_type> >
+	class na_vector2 : private NaPolicy, public std::vector< typename NaPolicy::value_type, Allocator > {
+	public:
+		typedef typename vector::value_type value_type;
 
+	public:
+		// using vector::vector;	// *sniff*
+
+		typedef detail::filtered_list< iterator, NaPolicy > filtered_list;
+		
+		static value_type get_na() {
+			return NaPolicy::get_na();
+		}
+
+		using vector::push_back;
+
+		void push_back( detail::_na_type ) {
+			vector::push_back( get_na() );
+		}
+
+		using vector::insert;
+
+		void insert( const_iterator _Where, size_type _Count, const detail::_na_type& _Val ) {
+			vector::insert( _Where, _Count, get_na() );
+		}
+
+		filtered_list filtered()
+		{
+			return filtered_list( begin(), end() );
+		}
+
+	};
 
 }
 
