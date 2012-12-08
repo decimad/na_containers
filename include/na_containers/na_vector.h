@@ -2,6 +2,7 @@
 #include <boost/integer_traits.hpp>
 #include <boost/iterator/filter_iterator.hpp>
 #include <boost/optional.hpp>
+#include <boost/iterator/zip_iterator.hpp>
 #include <algorithm>
 #include <vector>
 
@@ -129,6 +130,8 @@ namespace na {
 		typedef Allocator allocator_type;
 		typedef typename container_type::size_type size_type;
 
+		typedef std::ptrdiff_t difference_type;
+
 		typedef typename container_type::iterator       iterator;
 		typedef typename container_type::const_iterator const_iterator;
 				
@@ -140,7 +143,6 @@ namespace na {
 		typedef typename container_type::const_iterator const_iterator;
 
 		typedef detail::filtered_list< iterator, NaPolicy > filtered_list;
-
 
 	public:
 		static value_type get_na() {
