@@ -46,6 +46,7 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <OutDir>$(SolutionDir)\..\..\..\lib\</OutDir>
     <TargetName>na_containers</TargetName>
+    <IncludePath>$(SolutionDir)\..\..\..\include;$(BOOST_ROOT);$(IncludePath)</IncludePath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -73,6 +74,7 @@
     <ClCompile Include="..\..\..\..\na_containers\na_vector.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\..\..\..\include\na_containers\array2d.h" />
     <ClInclude Include="..\..\..\..\include\na_containers\na_vector.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
