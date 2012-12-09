@@ -17,25 +17,33 @@ namespace order {
 	struct column_major {};
 }
 
+namespace tags {
+	struct major_tag {};
+	struct minor_tag {};
+}
+
 namespace detail {
 
 	typedef std::size_t size_type;
 
+	template< typename ValueType, typename Tag >
+	class element_iterator;
+
 	template< typename ValueType >
-	class minor_element_iterator : public boost::iterator_facade< minor_element_iterator<ValueType>, ValueType, std::random_access_iterator_tag >  {
+	class element_iterator< ValueType, tags::minor_tag > : public boost::iterator_facade< element_iterator<ValueType, tags::minor_tag>, ValueType, std::random_access_iterator_tag >  {
 	public:
-		minor_element_iterator()
+		element_iterator()
 			: ptr_(nullptr), stride_(1)
 		{
 		}
 
-		minor_element_iterator( ValueType* ptr, difference_type stride )
+		element_iterator( ValueType* ptr, difference_type stride )
 			: ptr_( ptr ), stride_( stride )
 		{
 		}
 
 		template< typename T >
-		minor_element_iterator( minor_element_iterator<T>& other )
+		element_iterator( element_iterator<T,tags::minor_tag>& other )
 			: ptr_( other.ptr_ ), stride_( other.stride_ )
 		{
 		}
@@ -60,12 +68,12 @@ namespace detail {
 			ptr_ -= stride_;
 		}
 
-		bool equal( const minor_element_iterator& other ) const
+		bool equal( const element_iterator& other ) const
 		{
 			return ptr_ == other.ptr_;
 		}
 
-		difference_type distance_to( const minor_element_iterator& other ) const
+		difference_type distance_to( const element_iterator& other ) const
 		{
 			return (ptr_ - other.ptr_)/stride_;
 		}
@@ -76,29 +84,33 @@ namespace detail {
 		}
 
 	private:
-		friend class minor_element_iterator< typename strip_const< ValueType >::result >;
-		friend class minor_element_iterator< const ValueType >;
+		friend class element_iterator< typename strip_const< ValueType >::result, tags::minor_tag >;
+		friend class element_iterator< const ValueType, tags::minor_tag >;
 		ValueType* ptr_;
 		difference_type stride_;
 	};
 
 	template< typename ValueType >
-	class major_element_iterator : public boost::iterator_facade< major_element_iterator<ValueType>, ValueType, std::random_access_iterator_tag >  {
+	class element_iterator< ValueType, tags::major_tag > : public boost::iterator_facade< element_iterator<ValueType, tags::major_tag>, ValueType, std::random_access_iterator_tag >  {
 	public:
-		major_element_iterator()
+		element_iterator()
 			: ptr_(nullptr)
 		{
 		}
 
-		major_element_iterator( ValueType* ptr )
+		element_iterator( ValueType* ptr )
 			: ptr_( ptr )
 		{
 		}
 
-		template< typename T >
-		major_element_iterator( const major_element_iterator<T>& other )
+		element_iterator( const element_iterator& other )
 			: ptr_( other.ptr_ )
 		{
+		}
+
+		operator element_iterator< const ValueType, tags::major_tag >() const
+		{
+			return element_iterator< const ValueType, tags::major_tag >( ptr_ );
 		}
 
 		reference dereference()
@@ -121,12 +133,12 @@ namespace detail {
 			--ptr_;
 		}
 
-		bool equal( const major_element_iterator& other ) const
+		bool equal( const element_iterator& other ) const
 		{
 			return ptr_ == other.ptr_;
 		}
 
-		difference_type distance_to( const major_element_iterator& other ) const
+		difference_type distance_to( const element_iterator& other ) const
 		{
 			return ptr_ - other.ptr_;
 		}
@@ -137,150 +149,120 @@ namespace detail {
 		}
 
 	private:
-		friend class major_element_iterator< typename strip_const< ValueType >::result >;
-		friend class major_element_iterator< const ValueType >;
-
 		ValueType* ptr_;
 	};
 
-	template< typename ArrayType >
-	class col_type {
-	public:
-		typedef typename ArrayType::col_element_iterator iterator;
-		typedef typename ArrayType::const_col_element_iterator const_iterator;
-
-		col_type( ArrayType* table, size_type col )
-			: table_( table ), col_( col )
-		{
-		}
-
-		template< typename T >
-		col_type( const col_type<T>& other )
-		  : table_(other.table_), col_(other.col_) {
-		}
-
-	private:
-		friend class col_type<typename strip_const<ArrayType>::result>;
-		friend class col_type<const ArrayType>;
-
-		typename ArrayType::size_type col_;
-		ArrayType* table_;
-
-	public:
-		typename ArrayType::col_element_iterator begin()
-		{
-			return table_->_get_col_begin( col_ );
-		}
-
-		typename ArrayType::const_col_element_iterator begin() const
-		{
-			return table_->_get_const_col_begin( col_ );
-		}
-
-		typename ArrayType::const_col_element_iterator cbegin() const
-		{
-			return table_->_get_const_col_begin( col_ );
-		}
-
-		typename ArrayType::col_element_iterator end()
-		{
-			return table_->_get_col_end( col_ );
-		}
-
-		typename ArrayType::const_col_element_iterator end() const
-		{
-			return table_->_get_const_col_end( col_ );
-		}
-
-		typename ArrayType::const_col_element_iterator cend() const
-		{
-			return table_->_get_const_col_end( col_ );
-		}
+	template< bool Cond, typename S, typename T >
+	struct static_if {
+		typedef T type;
 	};
 
-	template< typename ArrayType >
-	class row_type {
-	public:
-		typedef typename ArrayType::row_element_iterator iterator;
-		typedef typename ArrayType::const_row_element_iterator const_iterator;
-
-		row_type( ArrayType* table, size_type row )
-			: table_( table ), row_( row )
-		{
-		}
-
-		template< typename T >
-		row_type( const row_type<T>& other )
-		  : table_(other.table_), row_(other.row_) {
-		}
-
-	private:
-		friend class row_type<typename strip_const<ArrayType>::result>;
-		friend class row_type<const ArrayType>;
-
-		size_type row_;
-		ArrayType* table_;
-
-	public:
-		typename ArrayType::row_element_iterator begin()
-		{
-			return table_->_get_row_begin( row_ );
-		}
-
-		typename ArrayType::const_row_element_iterator begin() const
-		{
-			return table_->_get_const_row_begin( row_ );
-		}
-
-		typename ArrayType::const_row_element_iterator cbegin() const
-		{
-			return table_->_get_const_row_begin( row_ );
-		}
-
-		typename ArrayType::row_element_iterator end()
-		{
-			return table_->_get_row_end( row_ );
-		}
-
-		typename ArrayType::const_row_element_iterator end() const
-		{
-			return table_->_get_const_row_end( row_ );
-		}
-
-		typename ArrayType::const_row_element_iterator cend() const
-		{
-			return table_->_get_const_row_end( row_ );
-		}
-	};
-
-	template< typename ArrayType, typename ValueType >
-	class base_iterator : public boost::iterator_facade< base_iterator<ArrayType,ValueType>, ValueType, std::random_access_iterator_tag, ValueType >
+	template< typename S, typename T >
+	struct static_if<true,S,T>
 	{
-	public:
-		base_iterator()
-			: table_( nullptr ), index_( 0 )
-		{
-		}
+		typedef S type;
+	};
 
-		base_iterator( ArrayType* table, typename ArrayType::size_type index )
+	template< typename ArrayType, typename Tag >
+	class slice_type {
+		typedef typename element_iterator< typename ArrayType::value_type, Tag > _tmp_iterator;
+	public:
+		typedef typename element_iterator< const typename ArrayType::value_type, Tag > const_iterator;
+		typedef typename static_if< std::is_const< ArrayType >::value, const_iterator, _tmp_iterator >::type iterator;
+		typedef typename static_if< std::is_const< ArrayType >::value, const typename ArrayType::value_type, typename ArrayType::value_type >::type value_type;
+		
+		slice_type( ArrayType* table, size_type index )
 			: table_( table ), index_( index )
 		{
 		}
 
-		template< typename S, typename T >
-		base_iterator( const base_iterator< S, T >& other )
+		template< typename T >
+		slice_type( const slice_type<T,Tag>& other )
+			: table_(other.table_), index_(other.index_) {
+		}
+
+	private:
+		friend class slice_type<typename strip_const<ArrayType>::result,Tag>;
+		friend class slice_type<const ArrayType,Tag>;
+
+		typename ArrayType::size_type index_;
+		ArrayType* table_;
+
+	public:
+		iterator begin()
+		{
+			return table_->_get_element_begin( index_, Tag() );
+		}
+
+		const_iterator begin() const
+		{
+			return table_->_get_element_begin( index_, Tag() );
+		}
+
+		const_iterator cbegin() const
+		{
+			return table_->_get_element_begin( index_, Tag() );
+		}
+
+		iterator end()
+		{
+			return table_->_get_element_end( index_, Tag() );
+		}
+
+		const_iterator end() const
+		{
+			return table_->_get_element_end( index_, Tag() );
+		}
+		
+		const_iterator cend() const
+		{
+			return table_->_get_element_end( index_, Tag() );
+		}
+
+		value_type& operator[]( size_type index )
+		{
+			return *(begin()+index);
+		}
+
+		const value_type& operator[]( size_type index ) const
+		{
+			return *(begin()+index);
+		}
+	};
+
+	template< typename ArrayType, typename Tag >
+	class slice_iterator : public boost::iterator_facade< slice_iterator<ArrayType,Tag>, slice_type< ArrayType, Tag >, std::random_access_iterator_tag, slice_type< ArrayType, Tag > >
+	{
+	public:
+		slice_iterator()
+			: table_( nullptr ), index_( 0 )
+		{
+		}
+
+		slice_iterator( ArrayType* table, typename ArrayType::size_type index )
+			: table_( table ), index_( index )
+		{
+		}
+
+	
+		slice_iterator( const slice_iterator& other )
 			: table_( other.table_ ), index_( other.index_ )
 		{
 		}
 
+		operator slice_iterator< const ArrayType, tags::major_tag >() const
+		{
+			return slice_iterator< const ArrayType, tags::major_tag >( table_, index_ );
+		}
+
 		reference dereference()
 		{
-			return ValueType( table_, index_ );
+			return value_type( table_, index_ );
 		}
 
 		const reference dereference() const
 		{
-			return ValueType( table_, index_ );
+			return value_type( table_, index_ );
 		}
 
 		void increment()
@@ -293,12 +275,12 @@ namespace detail {
 			--index_;
 		}
 
-		bool equal( const base_iterator& other ) const
+		bool equal( const slice_iterator& other ) const
 		{
 			return index_ == other.index_;
 		}
 
-		difference_type distance_to( const base_iterator& other ) const
+		difference_type distance_to( const slice_iterator& other ) const
 		{
 			return index_ - other.index_;
 		}
@@ -309,112 +291,87 @@ namespace detail {
 		}
 
 	private:
-		friend class base_iterator< typename strip_const<ArrayType>::result, typename strip_const<ValueType>::result >;
-		friend class base_iterator< const ArrayType, const ValueType >;
+		friend class slice_iterator< typename strip_const<ArrayType>::result, Tag >;
+		friend class slice_iterator< const ArrayType, Tag >;
 
 		ArrayType* table_;
 		typename ArrayType::size_type index_;
 	};
 
-	template< typename ArrayType >
-	class cols_sequence {
+	template< typename ArrayType, typename Tag >
+	class slice_sequence {
 	private:
 		typedef ArrayType array_type;
+		typedef slice_iterator< ArrayType, Tag > iterator;
+		typedef slice_iterator< const ArrayType, Tag > const_iterator;
 	
 	public:
-		cols_sequence( array_type* arr )
+		slice_sequence( array_type* arr )
 			: array_( arr )
 		{
 		}
 
-		typename array_type::col_iterator begin()
+		operator slice_sequence< const ArrayType, Tag >() const
 		{
-			return array_->col_begin();
+			return slice_sequence< const ArrayType, Tag >( array_ );
 		}
 
-		typename array_type::const_col_iterator begin() const
+		iterator begin()
 		{
-			return array_->col_begin();
+			return array_->get_slice_begin( Tag() );
 		}
 
-		typename array_type::const_col_iterator cbegin() const
+		const_iterator begin() const
 		{
-			return array_->col_cbegin();
+			return array_->get_slice_begin( Tag() );
 		}
 
-		typename array_type::col_iterator end()
+		const_iterator cbegin() const
 		{
-			return array_->col_end();
+			return array_->get_slice_begin( Tag() );
 		}
 
-		typename array_type::const_col_iterator end() const
+		iterator end()
 		{
-			return array_->col_end();
+			return array_->get_slice_end( Tag() );
 		}
 
-		typename array_type::const_col_iterator cend() const
+		const_iterator end() const
 		{
-			return array_->col_cend();
+			return array_->get_slice_end( Tag() );
+		}
+
+		const_iterator cend() const
+		{
+			return array_->get_slice_end( Tag() );
 		}
 
 	private:
 		array_type* array_;
 	};
 
-	template< typename ArrayType >
-	class rows_sequence {
-	private:
-		typedef ArrayType array_type;
+	template< typename Order >
+	class array2d_order;
 
+	template<>
+	class array2d_order< order::column_major >{
 	public:
-		rows_sequence( array_type* arr )
-			: array_( arr )
-		{
-		}
-
-		typename array_type::row_iterator begin()
-		{
-			return array_->row_begin();
-		}
-
-		typename array_type::const_row_iterator begin() const
-		{
-			return array_->row_begin();
-		}
-
-		typename array_type::const_row_iterator cbegin() const
-		{
-			return array_->row_cbegin();
-		}
-
-		typename array_type::row_iterator end()
-		{
-			return array_->row_end();
-		}
-
-		typename array_type::const_row_iterator end() const
-		{
-			return array_->row_end();
-		}
-
-		typename array_type::const_row_iterator cend() const
-		{
-			return array_->row_cend();
-		}
-
-	private:
-		array_type* array_;
+		typedef tags::major_tag column_tag;
+		typedef tags::minor_tag row_tag;
 	};
 
-
-
-
-
-
-	template< template< typename ContainerType, typename OrderType > class ArrayType, typename ContainerType, typename OrderType >
+	template<>
+	class array2d_order< order::row_major >{
+	public:
+		typedef tags::major_tag row_tag;
+		typedef tags::minor_tag column_tag;
+	};
+	
+	template< template< typename, typename > class ArrayType, typename ContainerType, typename OrderType >
 	class array2d_types {
 	public:
 		typedef ArrayType< ContainerType, OrderType > array_type;
+		typedef OrderType order_type;
 		typedef typename ContainerType::value_type value_type;
 		typedef typename ContainerType::reference reference;
 		typedef typename ContainerType::difference_type difference_type;
@@ -422,311 +379,278 @@ namespace detail {
 		typedef std::size_t size_type;
 		typedef ContainerType container_type;
 
-		typedef detail::row_type< array_type > row_type;
-		typedef const detail::row_type< const array_type > const_row_type;
-
-		typedef detail::col_type< array_type > col_type;
-		typedef const detail::col_type< const array_type > const_col_type;
-
-		typedef base_iterator< array_type, col_type > col_iterator;
-		typedef base_iterator< const array_type, const_col_type > const_col_iterator;
-
-		typedef base_iterator< array_type, row_type > row_iterator;
-		typedef base_iterator< const array_type, const_row_type > const_row_iterator;
-	};
-
-	// CRTP base class for array2d in order to provide column- and row-major ordering
-	template< template<typename,typename> class ArrayType, typename ContainerType, typename OrderType >
-	class array2d_base;
-	
-
-	// column major
-	template< template<typename,typename> class ArrayType, typename ContainerType >
-	class array2d_base< ArrayType, ContainerType, order::column_major > 
-		: public detail::array2d_types< ArrayType, ContainerType, order::column_major >
-	{
-	public:
-		typedef array2d_base base;
-
-		typedef order::column_major order_type;
-		typedef ArrayType< ContainerType, order_type > array_type;
-		typedef detail::array2d_types< ArrayType, ContainerType, order::column_major > types;
-
-		typedef detail::major_element_iterator< value_type       > col_element_iterator;
-		typedef detail::major_element_iterator< const value_type > const_col_element_iterator;
-
-		typedef detail::minor_element_iterator< value_type       > row_element_iterator;
-		typedef detail::minor_element_iterator< const value_type > const_row_element_iterator;
-
-	protected:
-		size_type _to_index( size_type row, size_type col ) {
-			return col * to_array().rows() + row;
-		}
-
-		// I'd like to have the *_begins and *_ends to be in the interface of the concrete array2d class, that's why I upcast here.
-		// These member functions help array2d to use the most efficient copy pattern.
-		col_type _get_major_begin()             { return to_array().col_begin(); }
-		const_col_type _get_major_begin() const { return to_arary().col_cbegin(); }
+		typedef typename array2d_order< OrderType >::row_tag row_tag;
+		typedef typename array2d_order< OrderType >::column_tag column_tag;
 		
-		row_type _get_minor_begin();
-		const_row_type _get_minor_begin() const;
+		typedef slice_type< array_type, row_tag > row_slice;
+		typedef const slice_type< const array_type, row_tag > const_row_slice;
 
-		col_element_iterator _get_col_begin( size_type col ) {
-			return col_element_iterator( to_array().data_origin() + _to_index(0, col) );
-		}
+		typedef slice_type< array_type, column_tag > column_slice;
+		typedef const slice_type< const array_type, column_tag > const_column_slice;
 
-		const_col_element_iterator _get_const_col_begin( size_type col ) const {
-			return const_col_element_iterator( to_array().data_origin() + _to_index(0, col) );
-		}
+		typedef slice_iterator< array_type, column_tag > col_slice_iterator;
+		typedef slice_iterator< const array_type, column_tag > const_col_slice_iterator;
 
-		col_element_iterator _get_col_end( size_type col ) {
-			return col_element_iterator( to_array().data_origin() + _to_index(to_array().rows(), col) );
-		}
+		typedef slice_iterator< array_type, row_tag > row_slice_iterator;
+		typedef slice_iterator< const array_type, row_tag > const_row_slice_iterator;
 
-		const_col_element_iterator _get_const_col_end( size_type col ) const {
-			return const_col_element_iterator( to_array().data_origin() +  _to_index(to_array().rows(), col) );
-		}
+		typedef slice_iterator< array_type, tags::major_tag > major_slice_iterator;
+		typedef slice_iterator< const array_type, tags::major_tag > const_major_slice_iterator;
+		typedef slice_iterator< array_type, tags::minor_tag > minor_slice_iterator;
+		typedef slice_iterator< const array_type, tags::minor_tag > const_minor_slice_iterator;
 
-		row_element_iterator _get_row_begin( size_type row ) {
-			return row_element_iterator( to_array().data_origin() + _to_index( row, 0 ), static_cast<row_element_iterator::difference_type>(to_array().rows()) );
-		}
+		typedef element_iterator< value_type, tags::major_tag > major_element_iterator;
+		typedef element_iterator< const value_type, tags::major_tag > const_major_element_iterator;
+		typedef element_iterator< value_type, tags::minor_tag > minor_element_iterator;
+		typedef element_iterator< const value_type, tags::minor_tag > const_minor_element_iterator;
 
-		const_row_element_iterator _get_const_row_begin( size_type row ) const {
-			return const_row_element_iterator( to_array().data_origin()  + _to_index( row, 0 ), static_cast<row_element_iterator::difference_type>(to_array().rows()) );
-		}
+		typedef element_iterator< value_type, column_tag > col_element_iterator;
+		typedef element_iterator< value_type, row_tag    > row_element_iterator;
 
-		row_element_iterator _get_row_end( size_type row ) {
-			return row_element_iterator( to_array().data_origin()  + _to_index( row, to_array().cols() ), static_cast<row_element_iterator::difference_type>(to_array().rows()) );
-		}
+		typedef element_iterator< const value_type, column_tag > const_col_element_iterator;
+		typedef element_iterator< const value_type, row_tag > const_row_element_iterator;
 
-		const_row_element_iterator _get_const_row_end( size_type row ) const {
-			return const_row_element_iterator( to_array().data_origin() + _to_index( row, to_array().cols() ), static_cast<row_element_iterator::difference_type>(to_array().rows()) );
-		}
+		typedef slice_sequence< array_type, tags::major_tag > major_slice_sequence;
+		typedef slice_sequence< const array_type, tags::major_tag > const_major_slice_sequence;
 
-	private:
-		array_type& to_array() {
-			return static_cast<array_type&>(*this);
-		}
+		typedef slice_sequence< array_type, tags::minor_tag > minor_slice_sequence;
+		typedef slice_sequence< const array_type, tags::minor_tag > const_minor_slice_sequence;
+
+		typedef slice_sequence< array_type, column_tag > column_slice_sequence;
+		typedef slice_sequence< const array_type, column_tag > const_column_slice_sequence;
+
+		typedef slice_sequence< array_type, row_tag > row_slice_sequence;
+		typedef slice_sequence< const array_type, row_tag > const_row_slice_sequence;
 	};
-
-	// row major
-	template< template<typename,typename> class ArrayType, typename ContainerType >
-	class array2d_base< ArrayType, ContainerType, order::row_major > 
-		: public detail::array2d_types< ArrayType, ContainerType, order::row_major >
-	{
-	public:
-		typedef array2d_base base;
-
-		typedef order::row_major order_type;
-		typedef ArrayType< ContainerType, order_type > array_type;
-		typedef detail::array2d_types< ArrayType, ContainerType, order::row_major > types;
-
-		typedef detail::minor_element_iterator< value_type       > col_element_iterator;
-		typedef detail::minor_element_iterator< const value_type > const_col_element_iterator;
-
-		typedef detail::major_element_iterator< value_type       > row_element_iterator;
-		typedef detail::major_element_iterator< const value_type > const_row_element_iterator;
-
-	protected:
-		size_type _to_index( size_type row, size_type col ) {
-			return row * to_array().cols() + col;
-		}
-
-		// I'd like to have the *_begins and *_ends to be in the interface of the concrete array2d class, that's why I upcast here.
-		// These member functions help array2d to use the most efficient copy pattern.
-		row_type _get_major_begin()             { return to_array().row_begin(); }
-		const_row_type _get_major_begin() const { return to_arary().row_cbegin(); }
-
-		col_type _get_minor_begin();
-		const_col_type _get_minor_begin() const;
-
-
-		col_element_iterator _get_col_begin( size_type col ) {
-			return col_element_iterator( to_array().data_origin() + _to_index(0, col), to_array().cols() );
-		}
-
-		const_col_element_iterator _get_const_col_begin( size_type col ) const {
-			return const_col_element_iterator( to_array().data_origin() + _to_index(0, col), to_array().cols() );
-		}
-
-		col_element_iterator _get_col_end( size_type col ) {
-			return col_element_iterator( to_array().data_origin() + _to_index(to_array().rows(), col), to_array().cols() );
-		}
-
-		const_col_element_iterator _get_const_col_end( size_type col ) const {
-			return const_col_element_iterator( to_array().data_origin() + _to_index(to_array().rows(), col), to_array().cols() );
-		}
-
-		row_element_iterator _get_row_begin( size_type row ) {
-			return row_element_iterator( to_array().data_origin() + _to_index( row, 0 ) );
-		}
-
-		const_row_element_iterator _get_const_row_begin( size_type row ) const {
-			return const_row_element_iterator( to_array().data_origin()  + _to_index( row, 0 ) );
-		}
-
-		row_element_iterator _get_row_end( size_type row ) {
-			return row_element_iterator( to_array().data_origin()  + _to_index( row, to_array().cols() ) );
-		}
-
-		const_row_element_iterator _get_const_row_end( size_type row ) const {
-			return const_row_element_iterator( to_array().data_origin() + _to_index( row, to_array().cols() ) );
-		}
-
-	private:
-		array_type& to_array() {
-			return static_cast<array_type&>(*this);
-		}
-
-		const array_type& to_array() const {
-			return static_cast<const array_type&>(*this);
-		}
-	};
-
-
 
 }
 
 template< typename ContainerType, typename Ordering = order::column_major >
-class array2d : public detail::array2d_base< ::array2d, ContainerType, Ordering >, virtual public detail::array2d_types< array2d, ContainerType, Ordering > {
-	// array2d_types is empty anyways but this suppresses the muliple-base-class warning.
-private:
-	typedef detail::array2d_base< ::array2d, ContainerType, Ordering > base;
-
+class array2d : public detail::array2d_types< ::array2d, ContainerType, Ordering > {
 public:
-	typedef typename base::col_element_iterator col_element_iterator;
-	typedef typename base::const_col_element_iterator const_col_element_iterator;
-
-	typedef typename base::row_element_iterator row_element_iterator;
-	typedef typename base::const_row_element_iterator const_row_element_iterator;
-
-
 	array2d( size_type rows, size_type cols )
-		: data_( rows*cols ), cols_(cols), rows_(rows)
 	{
+		_size( row_tag() )    = rows;
+		_size( column_tag() ) = cols;
+
+		data_.resize( minor_size_ * major_size_ );
 	}
 
 	array2d()
-		: cols_(0), rows_(0)
 	{
+		_size( row_tag() )    = 0;
+		_size( column_tag() ) = 0;
 	}
 
+	array2d( const array2d& other )
+		: data_( other.data_ ), major_size_( other.major_size_ ), minor_size_( other.minor_size_ )
+	{
+	}
+	
+	array2d( array2d&& other )
+		: data_( std::move(other.data_) ), major_size_( other.major_size_ ), minor_size_( other.minor_size_ )
+	{
+	}
+	
 public:
+	void swap( array2d& other ) 
+	{
+		data_.swap( other.data_ );
+		std::swap( minor_size_, other.minor_size_ );
+		std::swap( major_size_, other.major_size_ );
+	}
+
 	reference dereference( size_type row, size_type col ) {
-		return data_[_to_index( row, col )];
+		return data_[to_index( row, col )];
 	}
 
 	const_reference dereference( size_type row, size_type col ) const {
-		return data_[_to_index( row, col )];
+		return data_[to_index( row, col )];
 	}
 		
-	detail::cols_sequence<array2d> col_seq() {
-		return detail::cols_sequence<array2d>(this);
+	column_slice_sequence col_seq() {
+		return column_slice_sequence(this);
 	}
 
-	detail::cols_sequence<const array2d> col_seq() const {
-		return detail::cols_sequence<const array2d>(this);
+	const_column_slice_sequence col_seq() const {
+		return const_column_slice_sequence(this);
 	}
 
-	detail::rows_sequence<array2d> row_seq() {
-		return detail::rows_sequence<array2d>(this);
+	row_slice_sequence row_seq() {
+		return row_slice_sequence(this);
 	}
 
-	detail::rows_sequence<const array2d> row_seq() const {
-		return detail::rows_sequence<const array2d>(this);
+	const_row_slice_sequence row_seq() const {
+		return const_row_slice_sequence(this);
 	}
 
-	row_type GetRow( size_type row );
-	const_row_type GetRow( size_type row ) const;
-
-	col_type operator[]( size_type col )
+	column_slice operator[]( size_type col )
 	{
-		return col_type( this, col );
-	}
-
-	const_col_type operator[]( size_type col ) const
-	{
-		return const_col_type( this, col );
+		return column_slice( this, col );
 	}
 
 	size_type cols() const
 	{
-		return cols_;
+		return _size( column_tag() );
 	}
 
 	size_type rows() const
 	{
-		return rows_;
+		return _size( row_tag() );
 	}
 
-	row_iterator row_begin()
+	row_slice_iterator row_begin()
 	{
-		return row_iterator( this, 0 );
+		return row_slice_iterator( this, 0 );
 	}
 
-	row_iterator row_end()
+	row_slice_iterator row_end()
 	{
-		return row_iterator( this, rows_ );
+		return row_slice_iterator( this, rows_ );
 	}
 
-	const_row_iterator row_begin() const
+	const_row_slice_iterator row_begin() const
 	{
-		return const_row_iterator( this, 0 );
+		return const_row_slice_iterator( this, 0 );
 	}
 
-	const_row_iterator row_end() const
+	const_row_slice_iterator row_end() const
 	{
-		return const_row_iterator( this, rows_ );
+		return const_row_slice_iterator( this, rows_ );
 	}
 
-	const_row_iterator row_cbegin() const
+	const_row_slice_iterator row_cbegin() const
 	{
-		return const_row_iterator( this, 0 );
+		return const_row_slice_iterator( this, 0 );
 	}
 
-	const_row_iterator row_cend() const
+	const_row_slice_iterator row_cend() const
 	{
-		return const_row_iterator( this, rows_ );
+		return const_row_slice_iterator( this, rows_ );
 	}
 
-	col_iterator col_begin()
+	col_slice_iterator col_begin()
 	{
-		return col_iterator( this, 0 );
+		return col_slice_iterator( this, 0 );
 	}
 
-	col_iterator col_end()
+	col_slice_iterator col_end()
 	{
-		return col_iterator( this, cols_ );
+		return col_slice_iterator( this, cols_ );
 	}
 
-	const_col_iterator col_begin() const
+	const_col_slice_iterator col_begin() const
 	{
-		return const_col_iterator( this, 0 );
+		return const_col_slice_iterator( this, 0 );
 	}
 
-	const_col_iterator col_end() const
+	const_col_slice_iterator col_end() const
 	{
-		return const_col_iterator( this, cols_ );
+		return const_col_slice_iterator( this, cols_ );
 	}
 
-	const_col_iterator col_cbegin() const
+	const_col_slice_iterator col_cbegin() const
 	{
-		return const_col_iterator( this, 0 );
+		return const_col_slice_iterator( this, 0 );
 	}
 
-	const_col_iterator col_cend() const
+	const_col_slice_iterator col_cend() const
 	{
-		return const_col_iterator( this, cols_ );
+		return const_col_slice_iterator( this, cols_ );
 	}
 
-	value_type* data_origin()
+	void resize( size_type rows, size_type cols )
 	{
+		array2d other( rows, cols );
+
+		auto major1_end = major_slice_end();
+		auto major2_end = other.major_slice_end();
+
+		for( auto major1 = major_slice_begin(), major2 = other.major_slice_begin();
+			 major1 != major1_end && major2 != major2_end;
+			 ++major1,++major2 )
+		{
+			for( auto minor1 = major1->begin(), minor2 = major2->begin();
+				 minor1 != major1->end() && minor2 != major2->end();
+				 ++minor1,++minor2 ) {
+				*minor2 = *minor1;
+			}
+		}
+
+		swap( other );
+	}
+	
+	major_slice_iterator major_slice_begin()
+	{
+		return major_slice_iterator( this, 0 );
+	}
+
+	const_major_slice_iterator major_slice_begin() const
+	{
+		return const_major_slice_iterator( this, 0 );
+	}
+
+	const_major_slice_iterator major_slice_cbegin() const
+	{
+		return const_major_slice_iterator( this, 0 );
+	}
+
+	minor_slice_iterator minor_slice_begin()
+	{
+		return minor_slice_iterator( this, 0 );
+	}
+	
+	const_minor_slice_iterator minor_slice_begin() const
+	{
+		return const_minor_slice_iterator( this, 0 );
+	}
+
+	const_minor_slice_iterator minor_slice_cbegin() const
+	{
+		return const_minor_slice_iterator( this, 0 );
+	}
+	
+	major_slice_iterator major_slice_end()
+	{
+		return major_slice_iterator( this, major_size_ );
+	}
+
+	const_major_slice_iterator major_slice_end() const
+	{
+		return const_major_slice_iterator( this, major_size_ );
+	}
+
+	const_major_slice_iterator major_slice_cend() const
+	{
+		return const_major_slice_iterator( this, major_size_ );
+	}
+
+	minor_slice_iterator minor_slice_end()
+	{
+		return minor_slice_iterator( this, minor_size_ );
+	}
+
+	const_minor_slice_iterator minor_slice_end() const
+	{
+		return const_minor_slice_iterator( this, minor_size_ );
+	}
+
+	const_minor_slice_iterator minor_slice_cend() const
+	{
+		return const_minor_slice_iterator( this, minor_size_ );
+	}
+
+	value_type* data() {
 		return data_.data();
 	}
 
-	const value_type* data_origin() const
-	{
+	const value_type* data() const {
 		return data_.data();
+	}
+
+	size_type to_index( size_type row, size_type col )
+	{
+		return _to_index( row, col, order_type() );
 	}
 
 private:
@@ -734,14 +658,130 @@ private:
 	friend const_col_element_iterator;
 	friend row_element_iterator;
 	friend const_row_element_iterator;
+	friend column_slice_sequence;
+	friend row_slice_sequence;
+	friend major_slice_iterator;
+	friend const_major_slice_iterator;
+	friend minor_slice_iterator;
+	friend const_minor_slice_iterator;
+	friend major_slice_sequence;
+	friend const_major_slice_sequence;
+	friend minor_slice_sequence;
+	friend const_minor_slice_sequence;
 
-	friend class col_type;
-	friend class const_col_type;
-	friend class row_type;
-	friend class const_row_type;
+	friend column_slice;
+	friend const_column_slice;
+	friend row_slice;
+	friend const_row_slice;
+
+	major_slice_iterator get_slice_begin( tags::major_tag )
+	{
+		return major_slice_begin();
+	}
+
+	const_major_slice_iterator get_slice_begin( tags::major_tag ) const
+	{
+		return const_major_slice_begin();
+	}
+
+	minor_slice_iterator get_slice_begin( tags::minor_tag )
+	{
+		return minor_slice_begin();
+	}
+
+	const_minor_slice_iterator get_slice_begin( tags::minor_tag ) const
+	{
+		return minor_slice_begin();
+	}
+
+	major_slice_iterator get_slice_end( tags::major_tag )
+	{
+		return major_slice_end();
+	}
+
+	const_major_slice_iterator get_slice_end( tags::major_tag ) const
+	{
+		return major_slice_end();
+	}
+
+	minor_slice_iterator  get_slice_end( tags::minor_tag )
+	{
+		return minor_slice_end();
+	}
+
+	const_minor_slice_iterator get_slice_end( tags::minor_tag ) const
+	{
+		return minor_slice_cend();
+	}
+	
+	size_type& _size( tags::major_tag )
+	{
+		return major_size_;
+	}
+
+	size_type& _size( tags::minor_tag )
+	{
+		return minor_size_;
+	}
+	
+	size_type _to_index( size_type row, size_type col, order::column_major )
+	{
+		return col * major_size_ + row;
+	}
+
+	size_type _to_index( size_type row, size_type col, order::row_major )
+	{
+		return col + row * major_size_;
+	}
+
+	size_type _stride() const
+	{
+		return minor_size_;
+	}
+
+	major_element_iterator _get_element_begin( size_type index, tags::major_tag )
+	{
+		return major_element_iterator( data() + index * major_size_ );
+	}
+
+	const_major_element_iterator _get_element_begin( size_type index, tags::major_tag ) const
+	{
+		return major_element_iterator( data() + index * major_size_ );
+	}
+
+	minor_element_iterator _get_element_begin( size_type index, tags::minor_tag )
+	{
+		return minor_element_iterator( data() + index, _stride() );
+	}
+
+	const_minor_element_iterator _get_element_begin( size_type index, tags::minor_tag ) const
+	{
+		return const_minor_element_iterator( data() + index, _stride() );
+	}
+
+	major_element_iterator _get_element_end( size_type index, tags::major_tag )
+	{
+		return major_element_iterator( data() + index * major_size_ + major_size_ );
+	}
+
+	const_major_element_iterator _get_element_end( size_type index, tags::major_tag ) const
+	{
+		return major_element_iterator( data() + index * major_size_ + major_size_ );
+	}
+
+	minor_element_iterator _get_element_end( size_type index, tags::minor_tag )
+	{
+		return minor_element_iterator( data() + index + minor_size_ * major_size_, _stride() );
+	}
+
+	const_minor_element_iterator _get_element_end( size_type index, tags::minor_tag ) const
+	{
+		return const_minor_element_iterator( data() + index + minor_size_ * major_size_, _stride() );
+	}
+
 
 	container_type data_;
 
-	size_type cols_;
-	size_type rows_;
+	size_type minor_size_;
+	size_type major_size_;
 };
