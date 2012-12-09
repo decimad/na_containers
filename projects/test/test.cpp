@@ -26,6 +26,7 @@ int main()
 	auto bla = array2.col_seq();
 	for( auto col : bla ) {
 		auto a = *col.begin();
+		std::wcout << col[3] << '\n';
 	}
 	
 	array1.resize(11,11);
@@ -58,6 +59,8 @@ int main()
 		}
 		std::wcout << L'\n';
 	}
+
+	array_type1::const_row_slice_iterator bka = array1.row_begin();
 
 	wcout << sizeof( array_type1 ) << L'\n';
 	wcout << sizeof( std::vector< double > ) + 2*sizeof(array_type1::size_type) << L'\n';

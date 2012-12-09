@@ -103,10 +103,14 @@ namespace detail {
 		{
 		}
 
-		template< typename T >
-		element_iterator( const element_iterator<T,tags::major_tag>& other )
+		element_iterator( const element_iterator& other )
 			: ptr_( other.ptr_ )
 		{
+		}
+
+		operator element_iterator< const ValueType, tags::major_tag >() const
+		{
+			return element_iterator< const ValueType, tags::major_tag >( ptr_ );
 		}
 
 		reference dereference()
@@ -145,9 +149,6 @@ namespace detail {
 		}
 
 	private:
-		friend class element_iterator< typename strip_const< ValueType >::result, tags::major_tag >;
-		friend class element_iterator< const ValueType, tags::major_tag >;
-
 		ValueType* ptr_;
 	};
 
@@ -168,7 +169,8 @@ namespace detail {
 	public:
 		typedef typename element_iterator< const typename ArrayType::value_type, Tag > const_iterator;
 		typedef typename static_if< std::is_const< ArrayType >::value, const_iterator, _tmp_iterator >::type iterator;
-
+		typedef typename static_if< std::is_const< ArrayType >::value, const typename ArrayType::value_type, typename ArrayType::value_type >::type value_type;
+		
 		slice_type( ArrayType* table, size_type index )
 			: table_( table ), index_( index )
 		{
@@ -216,6 +218,16 @@ namespace detail {
 		{
 			return table_->_get_element_end( index_, Tag() );
 		}
+
+		value_type& operator[]( size_type index )
+		{
+			return *(begin()+index);
+		}
+
+		const value_type& operator[]( size_type index ) const
+		{
+			return *(begin()+index);
+		}
 	};
 
 	template< typename ArrayType, typename Tag >
@@ -232,10 +244,15 @@ namespace detail {
 		{
 		}
 
-		template< typename S, typename T >
-		slice_iterator( const slice_iterator< S, T >& other )
+	
+		slice_iterator( const slice_iterator& other )
 			: table_( other.table_ ), index_( other.index_ )
 		{
+		}
+
+		operator slice_iterator< const ArrayType, tags::major_tag >() const
+		{
+			return slice_iterator< const ArrayType, tags::major_tag >( table_, index_ );
 		}
 
 		reference dereference()
@@ -292,6 +309,11 @@ namespace detail {
 		slice_sequence( array_type* arr )
 			: array_( arr )
 		{
+		}
+
+		operator slice_sequence< const ArrayType, Tag >() const
+		{
+			return slice_sequence< const ArrayType, Tag >( array_ );
 		}
 
 		iterator begin()
@@ -479,7 +501,7 @@ public:
 
 	row_slice_iterator row_begin()
 	{
-		return row_iterator( this, 0 );
+		return row_slice_iterator( this, 0 );
 	}
 
 	row_slice_iterator row_end()
