@@ -75,6 +75,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\..\include\na_containers\array2d.h" />
+    <ClInclude Include="..\..\..\..\include\na_containers\array2d2.h" />
     <ClInclude Include="..\..\..\..\include\na_containers\na_vector.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
