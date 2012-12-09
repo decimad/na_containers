@@ -26,8 +26,5 @@
     <ClInclude Include="..\..\..\..\include\na_containers\array2d.h">
       <Filter>Headerdateien</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\..\include\na_containers\array2d2.h">
-      <Filter>Headerdateien</Filter>
-    </ClInclude>
   </ItemGroup>
 </Project>
