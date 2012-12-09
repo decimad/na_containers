@@ -1,16 +1,7 @@
 #pragma once
 #include <vector>
+#include <type_traits>
 #include <boost/iterator/iterator_facade.hpp>
-
-template< typename T >
-struct strip_const {
-	typedef T result;
-};
-
-template< typename T >
-struct strip_const< const T > {
-	typedef T result;
-};
 
 namespace order {
 	struct row_major {};
@@ -21,6 +12,9 @@ namespace tags {
 	struct major_tag {};
 	struct minor_tag {};
 }
+
+template< typename S, typename T >
+class array2d;
 
 namespace detail {
 
@@ -84,7 +78,7 @@ namespace detail {
 		}
 
 	private:
-		friend class element_iterator< typename strip_const< ValueType >::result, tags::minor_tag >;
+		friend class element_iterator< typename std::remove_const< ValueType >::type, tags::minor_tag >;
 		friend class element_iterator< const ValueType, tags::minor_tag >;
 		ValueType* ptr_;
 		difference_type stride_;
@@ -152,41 +146,34 @@ namespace detail {
 		ValueType* ptr_;
 	};
 
-	template< bool Cond, typename S, typename T >
-	struct static_if {
-		typedef T type;
-	};
-
-	template< typename S, typename T >
-	struct static_if<true,S,T>
-	{
-		typedef S type;
-	};
-
-	template< typename ArrayType, typename Tag >
+	template< typename ContainerType, typename OrderType, bool IsConst, typename Tag >
 	class slice_type {
-		typedef typename element_iterator< typename ArrayType::value_type, Tag > _tmp_iterator;
+		typedef array2d< ContainerType, OrderType > array_type;
+		typedef typename std::conditional< IsConst, const array_type*, array_type* >::type array_pointer_type;
+
+		typedef typename element_iterator< typename array_type::value_type, Tag > _tmp_iterator;
 	public:
-		typedef typename element_iterator< const typename ArrayType::value_type, Tag > const_iterator;
-		typedef typename static_if< std::is_const< ArrayType >::value, const_iterator, _tmp_iterator >::type iterator;
-		typedef typename static_if< std::is_const< ArrayType >::value, const typename ArrayType::value_type, typename ArrayType::value_type >::type value_type;
+		typedef typename element_iterator< const typename array_type::value_type, Tag > const_iterator;
+		typedef typename std::conditional< IsConst, const_iterator, _tmp_iterator >::type iterator;
+		typedef typename std::conditional< IsConst, const typename array_type::value_type, typename array_type::value_type >::type value_type;
 		
-		slice_type( ArrayType* table, size_type index )
+		slice_type( array_pointer_type table, size_type index )
 			: table_( table ), index_( index )
 		{
 		}
 
-		template< typename T >
-		slice_type( const slice_type<T,Tag>& other )
+		slice_type( const slice_type& other )
 			: table_(other.table_), index_(other.index_) {
 		}
 
-	private:
-		friend class slice_type<typename strip_const<ArrayType>::result,Tag>;
-		friend class slice_type<const ArrayType,Tag>;
+		operator slice_type<ContainerType,OrderType,true,Tag>() const
+		{
+			return slice_type<ContainerType,OrderType,true,Tag>( table_, index_ );
+		}
 
-		typename ArrayType::size_type index_;
-		ArrayType* table_;
+	private:
+		typename array_type::size_type index_;
+		array_pointer_type table_;
 
 	public:
 		iterator begin()
@@ -230,29 +217,35 @@ namespace detail {
 		}
 	};
 
-	template< typename ArrayType, typename Tag >
-	class slice_iterator : public boost::iterator_facade< slice_iterator<ArrayType,Tag>, slice_type< ArrayType, Tag >, std::random_access_iterator_tag, slice_type< ArrayType, Tag > >
+	template< typename ContainerType, typename OrderType, bool IsConst, typename Tag >
+	class slice_iterator : 
+		public boost::iterator_facade<	slice_iterator<ContainerType,OrderType,IsConst,Tag>,
+										slice_type< ContainerType,OrderType,IsConst, Tag >,
+										std::random_access_iterator_tag,
+										slice_type< ContainerType,OrderType,IsConst, Tag > >
 	{
+		typedef array2d< ContainerType, OrderType > array_type;
+		typedef typename std::conditional< IsConst, const array_type*, array_type* >::type array_pointer_type;
+
 	public:
 		slice_iterator()
 			: table_( nullptr ), index_( 0 )
 		{
 		}
 
-		slice_iterator( ArrayType* table, typename ArrayType::size_type index )
+		slice_iterator( array_pointer_type table, typename array_type::size_type index )
 			: table_( table ), index_( index )
 		{
 		}
 
-	
 		slice_iterator( const slice_iterator& other )
 			: table_( other.table_ ), index_( other.index_ )
 		{
 		}
 
-		operator slice_iterator< const ArrayType, tags::major_tag >() const
+		operator slice_iterator< ContainerType, OrderType, true, tags::major_tag >() const
 		{
-			return slice_iterator< const ArrayType, tags::major_tag >( table_, index_ );
+			return slice_iterator< ContainerType, OrderType, true, tags::major_tag >( table_, index_ );
 		}
 
 		reference dereference()
@@ -291,29 +284,28 @@ namespace detail {
 		}
 
 	private:
-		friend class slice_iterator< typename strip_const<ArrayType>::result, Tag >;
-		friend class slice_iterator< const ArrayType, Tag >;
-
-		ArrayType* table_;
-		typename ArrayType::size_type index_;
+		array_pointer_type table_;
+		typename array_type::size_type index_;
 	};
 
-	template< typename ArrayType, typename Tag >
+	template< typename ContainerType, typename OrderType, bool IsConst, typename Tag >
 	class slice_sequence {
 	private:
-		typedef ArrayType array_type;
-		typedef slice_iterator< ArrayType, Tag > iterator;
-		typedef slice_iterator< const ArrayType, Tag > const_iterator;
+		typedef array2d< ContainerType, OrderType > array_type;
+		typedef typename std::conditional< IsConst, const array_type*, array_type* >::type array_pointer_type;
+
+		typedef slice_iterator< ContainerType, OrderType, IsConst, Tag > iterator;
+		typedef slice_iterator< ContainerType, OrderType, true,    Tag > const_iterator;
 	
 	public:
-		slice_sequence( array_type* arr )
+		slice_sequence( array_pointer_type arr )
 			: array_( arr )
 		{
 		}
 
-		operator slice_sequence< const ArrayType, Tag >() const
+		operator slice_sequence< ContainerType, OrderType, true, Tag >() const
 		{
-			return slice_sequence< const ArrayType, Tag >( array_ );
+			return slice_sequence< ContainerType, OrderType, true, Tag >( array_ );
 		}
 
 		iterator begin()
@@ -347,7 +339,7 @@ namespace detail {
 		}
 
 	private:
-		array_type* array_;
+		array_pointer_type array_;
 	};
 
 	template< typename Order >
@@ -367,10 +359,10 @@ namespace detail {
 		typedef tags::minor_tag column_tag;
 	};
 	
-	template< template< typename, typename > class ArrayType, typename ContainerType, typename OrderType >
+	template< typename ContainerType, typename OrderType >
 	class array2d_types {
 	public:
-		typedef ArrayType< ContainerType, OrderType > array_type;
+		typedef array2d< ContainerType, OrderType > array_type;
 		typedef OrderType order_type;
 		typedef typename ContainerType::value_type value_type;
 		typedef typename ContainerType::reference reference;
@@ -382,22 +374,22 @@ namespace detail {
 		typedef typename array2d_order< OrderType >::row_tag row_tag;
 		typedef typename array2d_order< OrderType >::column_tag column_tag;
 		
-		typedef slice_type< array_type, row_tag > row_slice;
-		typedef const slice_type< const array_type, row_tag > const_row_slice;
+		typedef slice_type< ContainerType, OrderType, false, row_tag > row_slice;
+		typedef slice_type< ContainerType, OrderType, true,  row_tag > const_row_slice;
 
-		typedef slice_type< array_type, column_tag > column_slice;
-		typedef const slice_type< const array_type, column_tag > const_column_slice;
+		typedef slice_type< ContainerType, OrderType, false, column_tag > column_slice;
+		typedef slice_type< ContainerType, OrderType, true,  column_tag > const_column_slice;
 
-		typedef slice_iterator< array_type, column_tag > col_slice_iterator;
-		typedef slice_iterator< const array_type, column_tag > const_col_slice_iterator;
+		typedef slice_iterator< ContainerType, OrderType, false, column_tag > col_slice_iterator;
+		typedef slice_iterator< ContainerType, OrderType, true,  column_tag > const_col_slice_iterator;
 
-		typedef slice_iterator< array_type, row_tag > row_slice_iterator;
-		typedef slice_iterator< const array_type, row_tag > const_row_slice_iterator;
+		typedef slice_iterator< ContainerType, OrderType, false, row_tag > row_slice_iterator;
+		typedef slice_iterator< ContainerType, OrderType, true,  row_tag > const_row_slice_iterator;
 
-		typedef slice_iterator< array_type, tags::major_tag > major_slice_iterator;
-		typedef slice_iterator< const array_type, tags::major_tag > const_major_slice_iterator;
-		typedef slice_iterator< array_type, tags::minor_tag > minor_slice_iterator;
-		typedef slice_iterator< const array_type, tags::minor_tag > const_minor_slice_iterator;
+		typedef slice_iterator< ContainerType, OrderType, false, tags::major_tag > major_slice_iterator;
+		typedef slice_iterator< ContainerType, OrderType, true,  tags::major_tag > const_major_slice_iterator;
+		typedef slice_iterator< ContainerType, OrderType, false, tags::minor_tag > minor_slice_iterator;
+		typedef slice_iterator< ContainerType, OrderType, true,  tags::minor_tag > const_minor_slice_iterator;
 
 		typedef element_iterator< value_type, tags::major_tag > major_element_iterator;
 		typedef element_iterator< const value_type, tags::major_tag > const_major_element_iterator;
@@ -410,23 +402,23 @@ namespace detail {
 		typedef element_iterator< const value_type, column_tag > const_col_element_iterator;
 		typedef element_iterator< const value_type, row_tag > const_row_element_iterator;
 
-		typedef slice_sequence< array_type, tags::major_tag > major_slice_sequence;
-		typedef slice_sequence< const array_type, tags::major_tag > const_major_slice_sequence;
+		typedef slice_sequence< ContainerType, OrderType, false, tags::major_tag > major_slice_sequence;
+		typedef slice_sequence< ContainerType, OrderType, true,  tags::major_tag > const_major_slice_sequence;
 
-		typedef slice_sequence< array_type, tags::minor_tag > minor_slice_sequence;
-		typedef slice_sequence< const array_type, tags::minor_tag > const_minor_slice_sequence;
+		typedef slice_sequence< ContainerType, OrderType, false, tags::minor_tag > minor_slice_sequence;
+		typedef slice_sequence< ContainerType, OrderType, true,  tags::minor_tag > const_minor_slice_sequence;
 
-		typedef slice_sequence< array_type, column_tag > column_slice_sequence;
-		typedef slice_sequence< const array_type, column_tag > const_column_slice_sequence;
+		typedef slice_sequence< ContainerType, OrderType, false, column_tag > column_slice_sequence;
+		typedef slice_sequence< ContainerType, OrderType, true,  column_tag > const_column_slice_sequence;
 
-		typedef slice_sequence< array_type, row_tag > row_slice_sequence;
-		typedef slice_sequence< const array_type, row_tag > const_row_slice_sequence;
+		typedef slice_sequence< ContainerType, OrderType, false, row_tag > row_slice_sequence;
+		typedef slice_sequence< ContainerType, OrderType, true,  row_tag > const_row_slice_sequence;
 	};
 
 }
 
-template< typename ContainerType, typename Ordering = order::column_major >
-class array2d : public detail::array2d_types< ::array2d, ContainerType, Ordering > {
+template< typename ContainerType, typename OrderType = order::column_major >
+class array2d : public detail::array2d_types< ContainerType, OrderType > {
 public:
 	array2d( size_type rows, size_type cols )
 	{
@@ -501,7 +493,7 @@ public:
 
 	row_slice_iterator row_begin()
 	{
-		return row_slice_iterator( this, 0 );
+		return row_slice_iterator( this, size_type(0) );
 	}
 
 	row_slice_iterator row_end()
