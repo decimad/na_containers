@@ -151,11 +151,23 @@ namespace detail {
 		ValueType* ptr_;
 	};
 
+	template< bool Cond, typename S, typename T >
+	struct static_if {
+		typedef T type;
+	};
+
+	template< typename S, typename T >
+	struct static_if<true,S,T>
+	{
+		typedef S type;
+	};
+
 	template< typename ArrayType, typename Tag >
 	class slice_type {
+		typedef typename element_iterator< typename ArrayType::value_type, Tag > _tmp_iterator;
 	public:
-		typedef typename element_iterator< typename ArrayType::value_type, Tag > iterator;
 		typedef typename element_iterator< const typename ArrayType::value_type, Tag > const_iterator;
+		typedef typename static_if< std::is_const< ArrayType >::value, const_iterator, _tmp_iterator >::type iterator;
 
 		slice_type( ArrayType* table, size_type index )
 			: table_( table ), index_( index )
@@ -180,7 +192,27 @@ namespace detail {
 			return table_->_get_element_begin( index_, Tag() );
 		}
 
+		const_iterator begin() const
+		{
+			return table_->_get_element_begin( index_, Tag() );
+		}
+
+		const_iterator cbegin() const
+		{
+			return table_->_get_element_begin( index_, Tag() );
+		}
+
 		iterator end()
+		{
+			return table_->_get_element_end( index_, Tag() );
+		}
+
+		const_iterator end() const
+		{
+			return table_->_get_element_end( index_, Tag() );
+		}
+		
+		const_iterator cend() const
 		{
 			return table_->_get_element_end( index_, Tag() );
 		}
@@ -341,10 +373,14 @@ namespace detail {
 		typedef slice_iterator< const array_type, row_tag > const_row_slice_iterator;
 
 		typedef slice_iterator< array_type, tags::major_tag > major_slice_iterator;
+		typedef slice_iterator< const array_type, tags::major_tag > const_major_slice_iterator;
 		typedef slice_iterator< array_type, tags::minor_tag > minor_slice_iterator;
+		typedef slice_iterator< const array_type, tags::minor_tag > const_minor_slice_iterator;
 
 		typedef element_iterator< value_type, tags::major_tag > major_element_iterator;
+		typedef element_iterator< const value_type, tags::major_tag > const_major_element_iterator;
 		typedef element_iterator< value_type, tags::minor_tag > minor_element_iterator;
+		typedef element_iterator< const value_type, tags::minor_tag > const_minor_element_iterator;
 
 		typedef element_iterator< value_type, column_tag > col_element_iterator;
 		typedef element_iterator< value_type, row_tag    > row_element_iterator;
@@ -352,18 +388,24 @@ namespace detail {
 		typedef element_iterator< const value_type, column_tag > const_col_element_iterator;
 		typedef element_iterator< const value_type, row_tag > const_row_element_iterator;
 
-		typedef slice_sequence< array_type, column_tag > column_slice_sequence;
-		typedef slice_sequence< array_type, row_tag > row_slice_sequence;
+		typedef slice_sequence< array_type, tags::major_tag > major_slice_sequence;
+		typedef slice_sequence< const array_type, tags::major_tag > const_major_slice_sequence;
 
+		typedef slice_sequence< array_type, tags::minor_tag > minor_slice_sequence;
+		typedef slice_sequence< const array_type, tags::minor_tag > const_minor_slice_sequence;
+
+		typedef slice_sequence< array_type, column_tag > column_slice_sequence;
+		typedef slice_sequence< const array_type, column_tag > const_column_slice_sequence;
+
+		typedef slice_sequence< array_type, row_tag > row_slice_sequence;
+		typedef slice_sequence< const array_type, row_tag > const_row_slice_sequence;
 	};
 
 }
 
 template< typename ContainerType, typename Ordering = order::column_major >
 class array2d : public detail::array2d_types< ::array2d, ContainerType, Ordering > {
-	// array2d_types is empty anyways but this suppresses the muliple-base-class warning.
 public:
-	
 	array2d( size_type rows, size_type cols )
 	{
 		_size( row_tag() )    = rows;
@@ -408,12 +450,17 @@ public:
 		return column_slice_sequence(this);
 	}
 
+	const_column_slice_sequence col_seq() const {
+		return const_column_slice_sequence(this);
+	}
+
 	row_slice_sequence row_seq() {
 		return row_slice_sequence(this);
 	}
 
-	row_slice GetRow( size_type row );
-	const_row_slice GetRow( size_type row ) const;
+	const_row_slice_sequence row_seq() const {
+		return const_row_slice_sequence(this);
+	}
 
 	column_slice operator[]( size_type col )
 	{
@@ -494,10 +541,10 @@ public:
 	{
 		array2d other( rows, cols );
 
-		auto major1_end = get_major_slice_end();
-		auto major2_end = other.get_major_slice_end();
+		auto major1_end = major_slice_end();
+		auto major2_end = other.major_slice_end();
 
-		for( auto major1 = get_major_slice_begin(), major2 = other.get_major_slice_begin();
+		for( auto major1 = major_slice_begin(), major2 = other.major_slice_begin();
 			 major1 != major1_end && major2 != major2_end;
 			 ++major1,++major2 )
 		{
@@ -511,28 +558,77 @@ public:
 		swap( other );
 	}
 	
-	major_slice_iterator get_major_slice_begin()
+	major_slice_iterator major_slice_begin()
 	{
 		return major_slice_iterator( this, 0 );
 	}
 
-	minor_slice_iterator get_minor_slice_begin()
+	const_major_slice_iterator major_slice_begin() const
+	{
+		return const_major_slice_iterator( this, 0 );
+	}
+
+	const_major_slice_iterator major_slice_cbegin() const
+	{
+		return const_major_slice_iterator( this, 0 );
+	}
+
+	minor_slice_iterator minor_slice_begin()
 	{
 		return minor_slice_iterator( this, 0 );
 	}
+	
+	const_minor_slice_iterator minor_slice_begin() const
+	{
+		return const_minor_slice_iterator( this, 0 );
+	}
 
-	major_slice_iterator get_major_slice_end()
+	const_minor_slice_iterator minor_slice_cbegin() const
+	{
+		return const_minor_slice_iterator( this, 0 );
+	}
+	
+	major_slice_iterator major_slice_end()
 	{
 		return major_slice_iterator( this, major_size_ );
 	}
 
-	minor_slice_iterator get_minor_slice_end()
+	const_major_slice_iterator major_slice_end() const
+	{
+		return const_major_slice_iterator( this, major_size_ );
+	}
+
+	const_major_slice_iterator major_slice_cend() const
+	{
+		return const_major_slice_iterator( this, major_size_ );
+	}
+
+	minor_slice_iterator minor_slice_end()
 	{
 		return minor_slice_iterator( this, minor_size_ );
 	}
-	
+
+	const_minor_slice_iterator minor_slice_end() const
+	{
+		return const_minor_slice_iterator( this, minor_size_ );
+	}
+
+	const_minor_slice_iterator minor_slice_cend() const
+	{
+		return const_minor_slice_iterator( this, minor_size_ );
+	}
+
 	value_type* data() {
 		return data_.data();
+	}
+
+	const value_type* data() const {
+		return data_.data();
+	}
+
+	size_type to_index( size_type row, size_type col )
+	{
+		return _to_index( row, col, order_type() );
 	}
 
 private:
@@ -542,6 +638,15 @@ private:
 	friend const_row_element_iterator;
 	friend column_slice_sequence;
 	friend row_slice_sequence;
+	friend major_slice_iterator;
+	friend const_major_slice_iterator;
+	friend minor_slice_iterator;
+	friend const_minor_slice_iterator;
+	friend major_slice_sequence;
+	friend const_major_slice_sequence;
+	friend minor_slice_sequence;
+	friend const_minor_slice_sequence;
+
 	friend class column_slice;
 	friend class const_column_slice;
 	friend class row_slice;
@@ -549,24 +654,44 @@ private:
 
 	major_slice_iterator get_slice_begin( tags::major_tag )
 	{
-		return get_major_slice_begin();
+		return major_slice_begin();
+	}
+
+	const_major_slice_iterator get_slice_begin( tags::major_tag ) const
+	{
+		return const_major_slice_begin();
 	}
 
 	minor_slice_iterator get_slice_begin( tags::minor_tag )
 	{
-		return get_minor_slice_begin();
+		return minor_slice_begin();
+	}
+
+	const_minor_slice_iterator get_slice_begin( tags::minor_tag ) const
+	{
+		return minor_slice_begin();
 	}
 
 	major_slice_iterator get_slice_end( tags::major_tag )
 	{
-		return get_major_slice_end();
+		return major_slice_end();
+	}
+
+	const_major_slice_iterator get_slice_end( tags::major_tag ) const
+	{
+		return major_slice_end();
 	}
 
 	minor_slice_iterator  get_slice_end( tags::minor_tag )
 	{
-		return get_minor_slice_end();
+		return minor_slice_end();
 	}
 
+	const_minor_slice_iterator get_slice_end( tags::minor_tag ) const
+	{
+		return minor_slice_cend();
+	}
+	
 	size_type& _size( tags::major_tag )
 	{
 		return major_size_;
@@ -575,11 +700,6 @@ private:
 	size_type& _size( tags::minor_tag )
 	{
 		return minor_size_;
-	}
-
-	size_type to_index( size_type row, size_type col )
-	{
-		return _to_index( row, col, order_type() );
 	}
 	
 	size_type _to_index( size_type row, size_type col, order::column_major )
@@ -602,12 +722,27 @@ private:
 		return major_element_iterator( data() + index * major_size_ );
 	}
 
+	const_major_element_iterator _get_element_begin( size_type index, tags::major_tag ) const
+	{
+		return major_element_iterator( data() + index * major_size_ );
+	}
+
 	minor_element_iterator _get_element_begin( size_type index, tags::minor_tag )
 	{
 		return minor_element_iterator( data() + index, _stride() );
 	}
 
-	detail::element_iterator< value_type, tags::major_tag > _get_element_end( size_type index, tags::major_tag )
+	const_minor_element_iterator _get_element_begin( size_type index, tags::minor_tag ) const
+	{
+		return const_minor_element_iterator( data() + index, _stride() );
+	}
+
+	major_element_iterator _get_element_end( size_type index, tags::major_tag )
+	{
+		return major_element_iterator( data() + index * major_size_ + major_size_ );
+	}
+
+	const_major_element_iterator _get_element_end( size_type index, tags::major_tag ) const
 	{
 		return major_element_iterator( data() + index * major_size_ + major_size_ );
 	}
@@ -616,6 +751,12 @@ private:
 	{
 		return minor_element_iterator( data() + index + minor_size_ * major_size_, _stride() );
 	}
+
+	const_minor_element_iterator _get_element_end( size_type index, tags::minor_tag ) const
+	{
+		return const_minor_element_iterator( data() + index + minor_size_ * major_size_, _stride() );
+	}
+
 
 	container_type data_;
 

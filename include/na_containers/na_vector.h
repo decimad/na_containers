@@ -188,7 +188,7 @@ namespace na {
 		}
 		
 		na_vector (const na_vector& x)
-			: data_( x )
+			: data_( x.data_ )
 		{
 
 		}
@@ -218,12 +218,14 @@ namespace na {
 
 		na_vector& operator= (const na_vector& x)
 		{
-			return vector::operator ==( x );
+			data_ = x.data_;
+			return *this;
 		}
 
 		na_vector& operator= (na_vector&& x)
 		{
-			return vector::operator ==( std::move( x ) );
+			data_ = std:move(x.data_);
+			return *this;
 		}
 
 	public:
@@ -359,9 +361,9 @@ namespace na {
 
 		// swap
 	public:
-		void swap ( container_type& x)
+		void swap ( na_vector& x)
 		{
-			data_.swap( x );
+			data_.swap( x.data_ );
 		}
 
 		size_type size() const
@@ -431,72 +433,5 @@ namespace na {
 	};
 
 	// relational operators missing for now. never used those.
-
-	/*
-
-	template< typename ValueType, class NaPolicy = policies::NaPolicySV< ValueType >, typename Allocator = std::allocator<NaPolicy::value_type> >
-	class na_vector2 : private NaPolicy, public std::vector< typename NaPolicy::value_type, Allocator > {
-	public:
-		typedef typename vector::value_type value_type;
-
-	private:
-		operator std::vector< typename NaPolicy::value_type, Allocator >();
-
-		// na interface
-	public:
-		// using vector::vector;	// *sniff*
-
-		typedef detail::filtered_list< iterator, NaPolicy > filtered_list;
-
-		static value_type get_na() {
-			return NaPolicy::get_na();
-		}
-
-		filtered_list filtered()
-		{
-			return filtered_list( begin(), end() );
-		}
-
-		// vector interface
-	public:
-
-		using vector::push_back;
-
-		void push_back( detail::_na_type ) {
-			vector::push_back( get_na() );
-		}
-
-		using vector::insert;
-
-		iterator insert( const_iterator _Where, size_type _Count, const detail::_na_type& ) {
-			return vector::insert( _Where, _Count, get_na() );
-		}
-
-		iterator insert( const_iterator _Where, const detail::_na_type&& ) {
-			return vector::insert( _Where, get_na() );
-		}
-
-		iterator insert( const_iterator _Where, const detail::_na_type& ) {
-			return vector::insert( _Where, get_na() );
-		}
-
-		using vector::resize;
-
-		void resize(size_type _Newsize, const detail::_na_type& )
-		{
-			vector::resize( _Newsize, get_na() );
-		}
-		
-		using vector::assign;
-
-		void assign( size_type _Count, const detail::_na_type& _Val )
-		{
-			vector::assign( _Count, get_na() );
-		}
-
-	};
-
-	*/
-
 }
 

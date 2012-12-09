@@ -21,8 +21,13 @@ int main()
 	typedef array2d< na_vector1_special, order::column_major > array_type2;
 
 	array_type1 array1( 10, 10 );
-	array_type2 array2( 10, 10 );
+	const array_type1 array2( 10, 10 );
 
+	auto bla = array2.col_seq();
+	for( auto col : bla ) {
+		auto a = *col.begin();
+	}
+	
 	array1.resize(11,11);
 
 	auto blubb = array1.col_seq();

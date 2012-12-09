@@ -12,6 +12,24 @@ struct strip_const< const T > {
 	typedef T result;
 };
 
+template< typename T >
+struct is_resizable
+{
+	static const bool result = false;
+};
+
+template< typename T, typename S >
+struct is_resizable< std::vector< T, S > >
+{
+	static const bool result = true;
+};
+
+template< typename T, typename S, typename R >
+struct is_resizable< na::na_vector< T, S, R > >
+{
+	static const bool result = true;
+};
+
 namespace order {
 	struct row_major {};
 	struct column_major {};
@@ -406,11 +424,6 @@ namespace detail {
 		array_type* array_;
 	};
 
-
-
-
-
-
 	template< template< typename ContainerType, typename OrderType > class ArrayType, typename ContainerType, typename OrderType >
 	class array2d_types {
 	public:
@@ -465,42 +478,46 @@ namespace detail {
 
 		// I'd like to have the *_begins and *_ends to be in the interface of the concrete array2d class, that's why I upcast here.
 		// These member functions help array2d to use the most efficient copy pattern.
-		col_type _get_major_begin()             { return to_array().col_begin(); }
-		const_col_type _get_major_begin() const { return to_arary().col_cbegin(); }
-		
-		row_type _get_minor_begin();
-		const_row_type _get_minor_begin() const;
+		col_iterator _get_major_begin()             { return to_array().col_begin();  }
+		const_col_iterator _get_major_begin() const { return to_arary().col_cbegin(); }
+		col_iterator _get_major_end()               { return to_array().col_end();    }
+		const_col_iterator _get_major_end() const   { return to_arary().col_cend();   }
+
+		row_iterator _get_minor_begin()             { return to_array().row_begin();  }
+		const_row_iterator _get_minor_begin() const { return to_arary().row_cbegin(); }
+		row_iterator _get_minor_end()               { return to_array().row_end();    }
+		const_row_iterator _get_minor_end() const   { return to_arary().row_cend();   }
 
 		col_element_iterator _get_col_begin( size_type col ) {
-			return col_element_iterator( to_array().data_origin() + _to_index(0, col) );
+			return col_element_iterator( to_array().data() + _to_index(0, col) );
 		}
 
 		const_col_element_iterator _get_const_col_begin( size_type col ) const {
-			return const_col_element_iterator( to_array().data_origin() + _to_index(0, col) );
+			return const_col_element_iterator( to_array().data() + _to_index(0, col) );
 		}
 
 		col_element_iterator _get_col_end( size_type col ) {
-			return col_element_iterator( to_array().data_origin() + _to_index(to_array().rows(), col) );
+			return col_element_iterator( to_array().data() + _to_index(to_array().rows(), col) );
 		}
 
 		const_col_element_iterator _get_const_col_end( size_type col ) const {
-			return const_col_element_iterator( to_array().data_origin() +  _to_index(to_array().rows(), col) );
+			return const_col_element_iterator( to_array().data() +  _to_index(to_array().rows(), col) );
 		}
 
 		row_element_iterator _get_row_begin( size_type row ) {
-			return row_element_iterator( to_array().data_origin() + _to_index( row, 0 ), static_cast<row_element_iterator::difference_type>(to_array().rows()) );
+			return row_element_iterator( to_array().data() + _to_index( row, 0 ), static_cast<row_element_iterator::difference_type>(to_array().rows()) );
 		}
 
 		const_row_element_iterator _get_const_row_begin( size_type row ) const {
-			return const_row_element_iterator( to_array().data_origin()  + _to_index( row, 0 ), static_cast<row_element_iterator::difference_type>(to_array().rows()) );
+			return const_row_element_iterator( to_array().data()  + _to_index( row, 0 ), static_cast<row_element_iterator::difference_type>(to_array().rows()) );
 		}
 
 		row_element_iterator _get_row_end( size_type row ) {
-			return row_element_iterator( to_array().data_origin()  + _to_index( row, to_array().cols() ), static_cast<row_element_iterator::difference_type>(to_array().rows()) );
+			return row_element_iterator( to_array().data()  + _to_index( row, to_array().cols() ), static_cast<row_element_iterator::difference_type>(to_array().rows()) );
 		}
 
 		const_row_element_iterator _get_const_row_end( size_type row ) const {
-			return const_row_element_iterator( to_array().data_origin() + _to_index( row, to_array().cols() ), static_cast<row_element_iterator::difference_type>(to_array().rows()) );
+			return const_row_element_iterator( to_array().data() + _to_index( row, to_array().cols() ), static_cast<row_element_iterator::difference_type>(to_array().rows()) );
 		}
 
 	private:
@@ -534,43 +551,46 @@ namespace detail {
 
 		// I'd like to have the *_begins and *_ends to be in the interface of the concrete array2d class, that's why I upcast here.
 		// These member functions help array2d to use the most efficient copy pattern.
-		row_type _get_major_begin()             { return to_array().row_begin(); }
-		const_row_type _get_major_begin() const { return to_arary().row_cbegin(); }
+		row_iterator _get_major_begin()             { return to_array().row_begin(); }
+		const_row_iterator _get_major_begin() const { return to_arary().row_cbegin(); }
+		row_iterator _get_major_end()             { return to_array().row_end(); }
+		const_row_iterator _get_major_end() const { return to_arary().row_cend(); }
 
-		col_type _get_minor_begin();
-		const_col_type _get_minor_begin() const;
-
+		col_iterator _get_minor_begin()             { return to_array().col_begin(); }
+		const_col_iterator _get_minor_begin() const { return to_arary().col_cbegin(); }
+		col_iterator _get_minor_end()             { return to_array().col_end(); }
+		const_col_iterator _get_minor_end() const { return to_arary().col_cend(); }
 
 		col_element_iterator _get_col_begin( size_type col ) {
-			return col_element_iterator( to_array().data_origin() + _to_index(0, col), to_array().cols() );
+			return col_element_iterator( to_array().data() + _to_index(0, col), to_array().cols() );
 		}
 
 		const_col_element_iterator _get_const_col_begin( size_type col ) const {
-			return const_col_element_iterator( to_array().data_origin() + _to_index(0, col), to_array().cols() );
+			return const_col_element_iterator( to_array().data() + _to_index(0, col), to_array().cols() );
 		}
 
 		col_element_iterator _get_col_end( size_type col ) {
-			return col_element_iterator( to_array().data_origin() + _to_index(to_array().rows(), col), to_array().cols() );
+			return col_element_iterator( to_array().data() + _to_index(to_array().rows(), col), to_array().cols() );
 		}
 
 		const_col_element_iterator _get_const_col_end( size_type col ) const {
-			return const_col_element_iterator( to_array().data_origin() + _to_index(to_array().rows(), col), to_array().cols() );
+			return const_col_element_iterator( to_array().data() + _to_index(to_array().rows(), col), to_array().cols() );
 		}
 
 		row_element_iterator _get_row_begin( size_type row ) {
-			return row_element_iterator( to_array().data_origin() + _to_index( row, 0 ) );
+			return row_element_iterator( to_array().data() + _to_index( row, 0 ) );
 		}
 
 		const_row_element_iterator _get_const_row_begin( size_type row ) const {
-			return const_row_element_iterator( to_array().data_origin()  + _to_index( row, 0 ) );
+			return const_row_element_iterator( to_array().data()  + _to_index( row, 0 ) );
 		}
 
 		row_element_iterator _get_row_end( size_type row ) {
-			return row_element_iterator( to_array().data_origin()  + _to_index( row, to_array().cols() ) );
+			return row_element_iterator( to_array().data()  + _to_index( row, to_array().cols() ) );
 		}
 
 		const_row_element_iterator _get_const_row_end( size_type row ) const {
-			return const_row_element_iterator( to_array().data_origin() + _to_index( row, to_array().cols() ) );
+			return const_row_element_iterator( to_array().data() + _to_index( row, to_array().cols() ) );
 		}
 
 	private:
@@ -582,8 +602,6 @@ namespace detail {
 			return static_cast<const array_type&>(*this);
 		}
 	};
-
-
 
 }
 
@@ -600,11 +618,33 @@ public:
 	typedef typename base::row_element_iterator row_element_iterator;
 	typedef typename base::const_row_element_iterator const_row_element_iterator;
 
-
 	array2d( size_type rows, size_type cols )
 		: data_( rows*cols ), cols_(cols), rows_(rows)
 	{
 	}
+
+	// This would work but I don't know if it's worth the hassle.
+/*
+	template< typename Second >
+	array2d( size_type rows, Second cols, typename std::enable_if< std::is_convertible<Second,size_type>::value && is_resizable<container_type>::result >::type* t = 0 )
+		: data_( rows*cols ), cols_(cols), rows_(rows)
+	{
+	}
+
+	template< typename Second >
+	array2d( size_type rows, Second cols, typename std::enable_if< std::is_convertible<Second,size_type>::value && !is_resizable<container_type>::result >::type* t = 0 )
+		: cols_(cols), rows_(rows)
+	{
+		assert( cols_*rows_ <= container_type::_EEN_SIZE );
+	}
+
+	template< typename S, typename T >
+	array2d( ::array2d<S,T>& other, std::enable_if< std::is_convertible<typename S::value_type, value_type>::result >::type* = 0 )
+		: cols_(other.cols_), rows_(other.rows_)
+	{
+
+	}
+*/
 
 	array2d()
 		: cols_(0), rows_(0)
@@ -719,16 +759,44 @@ public:
 		return const_col_iterator( this, cols_ );
 	}
 
-	value_type* data_origin()
+	value_type* data()
 	{
 		return data_.data();
 	}
 
-	const value_type* data_origin() const
+	const value_type* data() const
 	{
 		return data_.data();
 	}
 
+	void swap( array2d& other )
+	{
+		std::swap( cols_, other.cols_ );
+		std::swap( rows_, other.rows_ );
+		std::swap( data_, other.data_ );
+	}
+
+	void resize( size_type rows, size_type cols )
+	{
+		array2d other( rows, cols );
+
+		auto major1_end = _get_major_end();
+		auto major2_end = other._get_major_end();
+
+		for( auto major1 = _get_major_begin(), major2 = other._get_major_begin();
+			 major1 != major1_end && major2 != major2_end;
+			 ++major1,++major2 )
+		{
+			for( auto minor1 = major1->begin(), minor2 = major2->begin();
+				 minor1 != major1->end() && minor2 != major2->end();
+				 ++minor1,++minor2 ) {
+				*minor2 = *minor1;
+			}
+		}
+
+		std::swap( other, *this );
+	}
+	
 private:
 	friend col_element_iterator;
 	friend const_col_element_iterator;

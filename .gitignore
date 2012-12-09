@@ -19,3 +19,5 @@ na_containers/release
 
 *.sdf
 *.opensdf
+lib/
+projects/msvc/na_containers/na_containers.v11.suo
