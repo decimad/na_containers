@@ -1,5 +1,6 @@
 #include <na_containers/na_vector.h>
-#include <na_containers/array2d.h>
+#include <na_containers/array2d2.h>
+#include <array>
 #include <cmath>
 #include <iostream>
 using std::wcout;
@@ -10,13 +11,6 @@ struct nan_value {
 };
 const float nan_value::value = std::numeric_limits<float>::quiet_NaN();
 
-
-template< typename A, typename B >
-void func( const std::vector< A, B >& vec )
-{
-
-}
-
 int main()
 {
 	typedef na::na_vector< float, na::policies::NaPolicyOptional<float> > na_vector1_optional;
@@ -25,9 +19,14 @@ int main()
 
 	typedef array2d< na_vector1_special, order::row_major > array_type1;
 	typedef array2d< na_vector1_special, order::column_major > array_type2;
+
 	array_type1 array1( 10, 10 );
 	array_type2 array2( 10, 10 );
 
+	array1.resize(11,11);
+
+	auto blubb = array1.col_seq();
+	
 	for( auto col : array1.col_seq() ) {
 		for( auto& elem : col ) {
 			elem = 1.0f;
@@ -39,8 +38,11 @@ int main()
 			elem += 1.0f;
 		}
 	}
-
+	
 	auto col = *(array1.col_begin() + 3);
+
+	array1.dereference(1,2) = 12;
+
 	for( auto& elem : col ) {
 		elem += 4.0f;
 	}
