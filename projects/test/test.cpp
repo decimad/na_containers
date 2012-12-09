@@ -1,5 +1,5 @@
 #include <na_containers/na_vector.h>
-#include <na_containers/array2d2.h>
+#include <na_containers/array2d.h>
 #include <array>
 #include <cmath>
 #include <iostream>
@@ -44,6 +44,13 @@ int main()
 			elem += 1.0f;
 		}
 	}
+	
+	
+	for( auto row : array1.row_seq() )
+	{
+		row[3] += 4.0f;
+	}
+	
 	
 	auto col = *(array1.col_begin() + 3);
 
