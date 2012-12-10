@@ -11,3 +11,6 @@ o brand new array2d implementation:
   - specialization for strided and unstrided iterators for efficiency
   - transparent access to major element iteration in order for efficient
     iterations and copy operations
+  - new! reshape: will reshape if the new bounds fit inside capacity and else resize.
+  - new! reserve: will resize and keep space in order for the array to grow without
+    resize/reshape operations.
