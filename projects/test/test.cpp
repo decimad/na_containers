@@ -20,7 +20,7 @@ int main()
 	typedef array2d< na_vector1_special, order::row_major > array_type1;
 	typedef array2d< na_vector1_special, order::column_major > array_type2;
 
-	array_type1 array1( 10, 10 );
+	array_type2 array1( 4, 4 );
 	const array_type1 array2( 10, 10 );
 
 	auto bla = array2.col_seq();
@@ -29,16 +29,18 @@ int main()
 		std::wcout << col[3] << '\n';
 	}
 	
-	array1.resize(11,11);
+//	array1.resize(11,11);
 
 	auto blubb = array1.col_seq();
 	
+	float counter = 0;
 	for( auto col : array1.col_seq() ) {
 		for( auto& elem : col ) {
-			elem = 1.0f;
+			elem = counter;
+			counter = counter + 1;
 		}
 	}
-
+/*
 	for( auto row : array1.row_seq() ) {
 		for( auto& elem : row ) {
 			elem += 1.0f;
@@ -59,6 +61,9 @@ int main()
 	for( auto& elem : col ) {
 		elem += 4.0f;
 	}
+*/
+	array1.reserve( 8, 8 );
+	array1.reshape( 7, 7 );
 
 	for( auto row : array1.row_seq() ) {
 		for( auto elem : row ) {
@@ -67,7 +72,7 @@ int main()
 		std::wcout << L'\n';
 	}
 
-	array_type1::const_row_slice_iterator bka = array1.row_begin();
+	array_type2::const_row_slice_iterator bka = array1.row_begin();
 
 	wcout << sizeof( array_type1 ) << L'\n';
 	wcout << sizeof( std::vector< double > ) + 2*sizeof(array_type1::size_type) << L'\n';

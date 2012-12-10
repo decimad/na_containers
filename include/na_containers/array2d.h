@@ -1,5 +1,6 @@
 #pragma once
 #include <vector>
+#include <utility>
 #include <type_traits>
 #include <boost/iterator/iterator_facade.hpp>
 
@@ -24,7 +25,11 @@ namespace detail {
 	class element_iterator;
 
 	template< typename ValueType >
-	class element_iterator< ValueType, tags::minor_tag > : public boost::iterator_facade< element_iterator<ValueType, tags::minor_tag>, ValueType, std::random_access_iterator_tag >  {
+	class element_iterator< ValueType, tags::minor_tag >
+		: public boost::iterator_facade< element_iterator<ValueType, tags::minor_tag>,
+										 ValueType,
+										 std::random_access_iterator_tag >
+	{
 	public:
 		element_iterator()
 			: ptr_(nullptr), stride_(1)
@@ -36,10 +41,14 @@ namespace detail {
 		{
 		}
 
-		template< typename T >
-		element_iterator( element_iterator<T,tags::minor_tag>& other )
+		element_iterator( const element_iterator& other )
 			: ptr_( other.ptr_ ), stride_( other.stride_ )
 		{
+		}
+
+		operator element_iterator< const ValueType, tags::minor_tag >() const
+		{
+			return element_iterator< const ValueType, tags::minor_tag >(ptr_);
 		}
 
 		reference dereference()
@@ -78,8 +87,6 @@ namespace detail {
 		}
 
 	private:
-		friend class element_iterator< typename std::remove_const< ValueType >::type, tags::minor_tag >;
-		friend class element_iterator< const ValueType, tags::minor_tag >;
 		ValueType* ptr_;
 		difference_type stride_;
 	};
@@ -243,9 +250,9 @@ namespace detail {
 		{
 		}
 
-		operator slice_iterator< ContainerType, OrderType, true, tags::major_tag >() const
+		operator slice_iterator< ContainerType, OrderType, true, Tag >() const
 		{
-			return slice_iterator< ContainerType, OrderType, true, tags::major_tag >( table_, index_ );
+			return slice_iterator< ContainerType, OrderType, true, Tag >( table_, index_ );
 		}
 
 		reference dereference()
@@ -422,8 +429,10 @@ class array2d : public detail::array2d_types< ContainerType, OrderType > {
 public:
 	array2d( size_type rows, size_type cols )
 	{
-		_size( row_tag() )    = rows;
-		_size( column_tag() ) = cols;
+		_size( row_tag() )     = rows;
+		_max_size( row_tag() ) = rows;
+		_size( column_tag() )  = cols;
+		_max_size( column_tag() ) = cols;
 
 		data_.resize( minor_size_ * major_size_ );
 	}
@@ -432,15 +441,21 @@ public:
 	{
 		_size( row_tag() )    = 0;
 		_size( column_tag() ) = 0;
+		_max_size( row_tag() ) = 0;
+		_max_size( column_tag() ) = 0;
 	}
 
 	array2d( const array2d& other )
-		: data_( other.data_ ), major_size_( other.major_size_ ), minor_size_( other.minor_size_ )
+		: data_( other.data_ ), 
+		major_size_( other.major_size_ ), minor_size_( other.minor_size_ ),
+		major_max_( other.major_max_ ), minor_max_( other.minor_max_ )
 	{
 	}
 	
 	array2d( array2d&& other )
-		: data_( std::move(other.data_) ), major_size_( other.major_size_ ), minor_size_( other.minor_size_ )
+		: data_( std::move(other.data_) ),
+		major_size_( other.major_size_ ), minor_size_( other.minor_size_ ),
+		major_max_( other.major_max_ ), minor_max_( other.minor_max_ )
 	{
 	}
 	
@@ -450,6 +465,8 @@ public:
 		data_.swap( other.data_ );
 		std::swap( minor_size_, other.minor_size_ );
 		std::swap( major_size_, other.major_size_ );
+		std::swap( major_max_, other.major_max_ );
+		std::swap( minor_max_, other.minor_max_ );
 	}
 
 	reference dereference( size_type row, size_type col ) {
@@ -459,7 +476,160 @@ public:
 	const_reference dereference( size_type row, size_type col ) const {
 		return data_[to_index( row, col )];
 	}
-		
+
+	column_slice operator[]( size_type col )
+	{
+		return column_slice( this, col );
+	}
+
+	size_type cols() const
+	{
+		return _size( column_tag() );
+	}
+	
+	void resize( size_type rows, size_type cols )
+	{
+		if( rows * cols < data_.capacity() ) {
+			reshape( rows, cols );
+		} else {
+			array2d other( rows, cols );
+
+			auto major1_end = major_slice_end();
+			auto major2_end = other.major_slice_end();
+
+			for( auto major1 = major_slice_begin(), major2 = other.major_slice_begin();
+				 major1 != major1_end && major2 != major2_end;
+				 ++major1,++major2 )
+			{
+				for( auto minor1 = major1->begin(), minor2 = major2->begin();
+					 minor1 != major1->end() && minor2 != major2->end();
+					 ++minor1,++minor2 ) {
+					*minor2 = *minor1;
+				}
+			}
+
+			swap( other );
+		}
+	}
+
+	void reserve( size_type rows, size_type cols )
+	{
+		auto sizepair = _to_major_minor( rows, cols, OrderType() );
+		sizepair.first  = std::max( major_max_, sizepair.first );
+		sizepair.second = std::max( minor_max_, sizepair.second );
+
+		if( sizepair.first * sizepair.second > data_.capacity() ) {
+			data_.resize( sizepair.first * sizepair.second );
+			for( size_type i = minor_size_-1; i >= 1; --i ) {
+				std::move_backward( data()+i*major_max_, data()+i*major_max_+sizepair.first, data()+i*sizepair.first+sizepair.first );
+			}
+			major_max_ = sizepair.first;
+			minor_max_ = sizepair.second;
+		} else {
+			reshape( rows, cols );
+		}
+	}
+
+	void reshape( size_type rows, size_type cols )
+	{
+		if( rows * cols > data_.capacity() ) {
+			// need more space
+			resize( rows, cols );
+		} else {
+			// Need to align majors with new pattern
+			auto sizepair = _to_major_minor( rows, cols, OrderType() );
+
+			size_type new_major_max_ = data_.capacity()/sizepair.second;
+			size_type new_minor_max_ = sizepair.second;
+
+			if( sizepair.first < major_size_ ) {
+				for( size_type i = 1; i < minor_size_; ++i ) {
+					std::move( data()+i*major_max_, data()+i*major_max_+sizepair.first, data()+i*new_major_max_ );
+				}
+			} else {
+				for( size_type i = minor_size_-1; i >= 1; --i ) {
+					std::move_backward( data()+i*major_max_, data()+i*major_max_+major_max_, data()+i*new_major_max_+major_max_ );
+				}
+			}
+
+			major_max_ = new_major_max_;
+			minor_max_ = new_minor_max_;
+			major_size_ = sizepair.first;
+			minor_size_ = sizepair.second;
+		}
+	}
+	
+	value_type* data() {
+		return data_.data();
+	}
+
+	const value_type* data() const {
+		return data_.data();
+	}
+
+	size_type to_index( size_type row, size_type col )
+	{
+		return _to_index( row, col, order_type() );
+	}
+
+
+private:
+	size_type& _size( tags::major_tag )
+	{
+		return major_size_;
+	}
+
+	size_type& _size( tags::minor_tag )
+	{
+		return minor_size_;
+	}
+
+	size_type& _max_size( tags::major_tag )
+	{
+		return major_max_;
+	}
+
+	size_type& _max_size( tags::minor_tag )
+	{
+		return minor_max_;
+	}
+	
+	size_type _to_index( size_type row, size_type col, order::column_major )
+	{
+		return col * major_max_ + row;
+	}
+
+	size_type _to_index( size_type row, size_type col, order::row_major )
+	{
+		return col + row * major_max_;
+	}
+
+	std::pair< size_type, size_type > _to_major_minor( size_type row, size_type col, order::column_major )
+	{
+		return std::make_pair( col, row );
+	}
+
+	std::pair< size_type, size_type > _to_major_minor( size_type row, size_type col, order::row_major )
+	{
+		return std::make_pair( row, col );
+	}
+
+	size_type _stride() const
+	{
+		return major_max_;
+	}
+
+	container_type data_;
+
+	size_type minor_max_;
+	size_type major_max_;
+
+	size_type minor_size_;
+	size_type major_size_;
+
+#pragma region Sequences
+// sequences
+public:
 	column_slice_sequence col_seq() {
 		return column_slice_sequence(this);
 	}
@@ -475,17 +645,10 @@ public:
 	const_row_slice_sequence row_seq() const {
 		return const_row_slice_sequence(this);
 	}
+#pragma endregion
 
-	column_slice operator[]( size_type col )
-	{
-		return column_slice( this, col );
-	}
-
-	size_type cols() const
-	{
-		return _size( column_tag() );
-	}
-
+#pragma region Slice Iterators
+public:
 	size_type rows() const
 	{
 		return _size( row_tag() );
@@ -551,28 +714,7 @@ public:
 		return const_col_slice_iterator( this, cols_ );
 	}
 
-	void resize( size_type rows, size_type cols )
-	{
-		array2d other( rows, cols );
-
-		auto major1_end = major_slice_end();
-		auto major2_end = other.major_slice_end();
-
-		for( auto major1 = major_slice_begin(), major2 = other.major_slice_begin();
-			 major1 != major1_end && major2 != major2_end;
-			 ++major1,++major2 )
-		{
-			for( auto minor1 = major1->begin(), minor2 = major2->begin();
-				 minor1 != major1->end() && minor2 != major2->end();
-				 ++minor1,++minor2 ) {
-				*minor2 = *minor1;
-			}
-		}
-
-		swap( other );
-	}
-	
-	major_slice_iterator major_slice_begin()
+		major_slice_iterator major_slice_begin()
 	{
 		return major_slice_iterator( this, 0 );
 	}
@@ -632,19 +774,10 @@ public:
 		return const_minor_slice_iterator( this, minor_size_ );
 	}
 
-	value_type* data() {
-		return data_.data();
-	}
 
-	const value_type* data() const {
-		return data_.data();
-	}
+#pragma endregion
 
-	size_type to_index( size_type row, size_type col )
-	{
-		return _to_index( row, col, order_type() );
-	}
-
+#pragma region Internal
 private:
 	friend col_element_iterator;
 	friend const_col_element_iterator;
@@ -706,39 +839,14 @@ private:
 		return minor_slice_cend();
 	}
 	
-	size_type& _size( tags::major_tag )
-	{
-		return major_size_;
-	}
-
-	size_type& _size( tags::minor_tag )
-	{
-		return minor_size_;
-	}
-	
-	size_type _to_index( size_type row, size_type col, order::column_major )
-	{
-		return col * major_size_ + row;
-	}
-
-	size_type _to_index( size_type row, size_type col, order::row_major )
-	{
-		return col + row * major_size_;
-	}
-
-	size_type _stride() const
-	{
-		return minor_size_;
-	}
-
 	major_element_iterator _get_element_begin( size_type index, tags::major_tag )
 	{
-		return major_element_iterator( data() + index * major_size_ );
+		return major_element_iterator( data() + index * major_max_ );
 	}
 
 	const_major_element_iterator _get_element_begin( size_type index, tags::major_tag ) const
 	{
-		return major_element_iterator( data() + index * major_size_ );
+		return major_element_iterator( data() + index * major_max_ );
 	}
 
 	minor_element_iterator _get_element_begin( size_type index, tags::minor_tag )
@@ -753,27 +861,23 @@ private:
 
 	major_element_iterator _get_element_end( size_type index, tags::major_tag )
 	{
-		return major_element_iterator( data() + index * major_size_ + major_size_ );
+		return major_element_iterator( data() + index * major_max_ + major_size_ );
 	}
 
 	const_major_element_iterator _get_element_end( size_type index, tags::major_tag ) const
 	{
-		return major_element_iterator( data() + index * major_size_ + major_size_ );
+		return major_element_iterator( data() + index * major_max_ + major_site_ );
 	}
 
 	minor_element_iterator _get_element_end( size_type index, tags::minor_tag )
 	{
-		return minor_element_iterator( data() + index + minor_size_ * major_size_, _stride() );
+		return minor_element_iterator( data() + index + minor_size_ * major_max_, _stride() );
 	}
 
 	const_minor_element_iterator _get_element_end( size_type index, tags::minor_tag ) const
 	{
-		return const_minor_element_iterator( data() + index + minor_size_ * major_size_, _stride() );
+		return const_minor_element_iterator( data() + index + minor_size_ * major_max_, _stride() );
 	}
+#pragma endregion
 
-
-	container_type data_;
-
-	size_type minor_size_;
-	size_type major_size_;
 };
